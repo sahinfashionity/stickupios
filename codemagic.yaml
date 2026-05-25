@@ -1,0 +1,34 @@
+workflows:
+  etiketradar-ios-unsigned:
+    name: EtiketRadar iOS unsigned IPA
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      xcode: latest
+    scripts:
+      - name: Install XcodeGen
+        script: |
+          brew install xcodegen || true
+      - name: Generate Xcode project
+        script: |
+          xcodegen generate
+      - name: Build unsigned archive
+        script: |
+          xcodebuild \
+            -project EtiketRadar.xcodeproj \
+            -scheme EtiketRadar \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            clean build
+      - name: Create unsigned IPA
+        script: |
+          mkdir -p build/Payload
+          APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -path "*/Build/Products/Release-iphoneos/EtiketRadar.app" | head -n 1)
+          cp -R "$APP_PATH" build/Payload/EtiketRadar.app
+          cd build
+          zip -r EtiketRadar-unsigned.ipa Payload
+    artifacts:
+      - build/EtiketRadar-unsigned.ipa
