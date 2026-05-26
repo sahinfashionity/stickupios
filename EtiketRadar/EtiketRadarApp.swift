@@ -226,22 +226,28 @@ struct RootView: View {
     @State private var selectedTab: AppTab = .home
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            Group {
-                switch selectedTab {
-                case .home:
-                    NavigationStack { HomeView(client: client) }
-                case .history:
-                    NavigationStack { HistoryView() }
-                case .settings:
-                    NavigationStack { SettingsView(backendBaseURL: $backendBaseURL, appApiKey: $appApiKey) }
-                }
-            }
+        currentScreen
             .tint(AppTheme.blue)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .background(AppTheme.screenBackground.ignoresSafeArea())
+            .safeAreaInset(edge: .bottom) {
+                PremiumTabBar(selectedTab: $selectedTab)
+                    .padding(.horizontal, 22)
+                    .padding(.top, 8)
+                    .padding(.bottom, 6)
+                    .background(Color.clear)
+            }
+    }
 
-            PremiumTabBar(selectedTab: $selectedTab)
-                .padding(.horizontal, 28)
-                .padding(.bottom, 14)
+    @ViewBuilder
+    private var currentScreen: some View {
+        switch selectedTab {
+        case .home:
+            NavigationStack { HomeView(client: client) }
+        case .history:
+            NavigationStack { HistoryView() }
+        case .settings:
+            NavigationStack { SettingsView(backendBaseURL: $backendBaseURL, appApiKey: $appApiKey) }
         }
     }
 
@@ -256,10 +262,10 @@ struct HomeView: View {
     var body: some View {
         PremiumScreen {
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 30) {
+                VStack(spacing: 24) {
                     HomeBrandHeader()
-                        .padding(.top, 18)
-                        .padding(.bottom, 10)
+                        .padding(.top, 8)
+                        .padding(.bottom, 4)
 
                     NavigationLink {
                         LabelLandingView(client: client)
@@ -291,9 +297,11 @@ struct HomeView: View {
                     }
                     .buttonStyle(.plain)
 
-                    Spacer(minLength: 150)
+                    Spacer(minLength: 80)
                 }
-                .padding(.horizontal, 28)
+                .frame(maxWidth: .infinity, minHeight: UIScreen.main.bounds.height - 170, alignment: .top)
+                .padding(.horizontal, 22)
+                .padding(.bottom, 12)
             }
         }
         .navigationBarHidden(true)
@@ -315,7 +323,7 @@ struct MedicineLandingView: View {
     var body: some View {
         PremiumScreen {
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 26) {
+                VStack(spacing: 22) {
                     TallPageHeader(
                         title: "İlaç Asistanı",
                         subtitle: "İlaç bilgilerini hızlıca öğren",
@@ -323,7 +331,7 @@ struct MedicineLandingView: View {
                         showBack: true,
                         action: { dismiss() }
                     )
-                    .padding(.top, 16)
+                    .padding(.top, 8)
 
                     Button { showManual = true } label: {
                         FeatureVisualCard(
@@ -353,9 +361,11 @@ struct MedicineLandingView: View {
 
                     SafetyInfoPanel()
 
-                    Spacer(minLength: 150)
+                    Spacer(minLength: 80)
                 }
-                .padding(.horizontal, 28)
+                .frame(maxWidth: .infinity, minHeight: UIScreen.main.bounds.height - 170, alignment: .top)
+                .padding(.horizontal, 22)
+                .padding(.bottom, 12)
             }
             if let loadingMessage { PremiumLoadingOverlay(message: loadingMessage) }
         }
@@ -437,7 +447,7 @@ struct LabelLandingView: View {
     var body: some View {
         PremiumScreen {
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 26) {
+                VStack(spacing: 22) {
                     TallPageHeader(
                         title: "Etiket Karşılaştır",
                         subtitle: "Mağaza fiyatını internette kontrol et",
@@ -445,7 +455,7 @@ struct LabelLandingView: View {
                         showBack: true,
                         action: { dismiss() }
                     )
-                    .padding(.top, 16)
+                    .padding(.top, 8)
 
                     Button { showCamera = true } label: {
                         FeatureVisualCard(
@@ -474,9 +484,11 @@ struct LabelLandingView: View {
                     .buttonStyle(.plain)
 
                     LabelInfoPanel()
-                    Spacer(minLength: 150)
+                    Spacer(minLength: 80)
                 }
-                .padding(.horizontal, 28)
+                .frame(maxWidth: .infinity, minHeight: UIScreen.main.bounds.height - 170, alignment: .top)
+                .padding(.horizontal, 22)
+                .padding(.bottom, 12)
             }
             if let loadingMessage { PremiumLoadingOverlay(message: loadingMessage) }
         }
@@ -580,9 +592,11 @@ struct MedicineResultView: View {
 
                     MedicalDisclaimer(text: response.disclaimer ?? "Doktor tavsiyesi değildir. Sağlık durumunuzla ilgili kararlar için doktorunuza veya eczacınıza danışınız.")
                     SourcesCompact(sources: response.sources)
-                    Spacer(minLength: 130)
+                    Spacer(minLength: 70)
                 }
-                .padding(.horizontal, 24)
+                .frame(maxWidth: .infinity, minHeight: UIScreen.main.bounds.height - 170, alignment: .top)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 12)
             }
         }
         .navigationBarHidden(true)
@@ -630,9 +644,11 @@ struct LabelResultView: View {
 
                     ExpandInfoCard(title: "Alışveriş Tavsiyeleri", icon: "lightbulb.fill", items: response.suggestions)
                     SourcesCompact(sources: response.sources)
-                    Spacer(minLength: 130)
+                    Spacer(minLength: 70)
                 }
-                .padding(.horizontal, 24)
+                .frame(maxWidth: .infinity, minHeight: UIScreen.main.bounds.height - 170, alignment: .top)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 12)
             }
         }
         .navigationBarHidden(true)
@@ -685,7 +701,7 @@ struct FullScreenPurchaseView: View {
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(title)
-                            .font(.system(size: 34, weight: .black, design: .rounded))
+                            .font(.system(size: 30, weight: .black, design: .rounded))
                             .foregroundColor(AppTheme.navy)
                         Text("Fiyat ve link bilgisi")
                             .font(.callout.weight(.semibold))
@@ -702,8 +718,8 @@ struct FullScreenPurchaseView: View {
                             .premiumShadow(.black, opacity: 0.06, radius: 14, y: 6)
                     }
                 }
-                .padding(.horizontal, 24)
-                .padding(.top, 18)
+                 .padding(.horizontal, 20)
+                .padding(.top, 8)
                 .padding(.bottom, 18)
 
                 ScrollView(showsIndicators: false) {
@@ -742,7 +758,8 @@ struct FullScreenPurchaseView: View {
 
                         Spacer(minLength: 170)
                     }
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 8)
                 }
             }
 
@@ -774,8 +791,8 @@ struct FullScreenPurchaseView: View {
                         .overlay(RoundedRectangle(cornerRadius: 22).stroke(AppTheme.blue.opacity(0.16), lineWidth: 1))
                 }
             }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 28)
+             .padding(.horizontal, 20)
+            .padding(.bottom, 18)
             .frame(maxHeight: .infinity, alignment: .bottom)
             .background(alignment: .bottom) {
                 LinearGradient(colors: [.clear, Color.white.opacity(0.96)], startPoint: .top, endPoint: .bottom)
@@ -878,11 +895,15 @@ struct PremiumScreen<Content: View>: View {
     @ViewBuilder var content: () -> Content
 
     var body: some View {
-        ZStack {
-            AppTheme.screenBackground.ignoresSafeArea()
-            RadarBackground()
-                .ignoresSafeArea()
-            content()
+        GeometryReader { proxy in
+            ZStack(alignment: .top) {
+                AppTheme.screenBackground.ignoresSafeArea()
+                RadarBackground()
+                    .ignoresSafeArea()
+                content()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            }
+            .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
         }
     }
 }
@@ -929,14 +950,14 @@ struct HomeBrandHeader: View {
             RadarLogo()
                 .frame(width: 112, height: 112)
             Text("EtiketRadar")
-                .font(.system(size: 51, weight: .black, design: .rounded))
+                .font(.system(size: 42, weight: .black, design: .rounded))
                 .foregroundStyle(
                     LinearGradient(colors: [AppTheme.navy, AppTheme.blue], startPoint: .leading, endPoint: .trailing)
                 )
                 .minimumScaleFactor(0.7)
                 .lineLimit(1)
             Text("Akıllı fiyat ve ürün asistanı")
-                .font(.system(size: 20, weight: .semibold))
+                .font(.system(size: 16, weight: .semibold))
                 .foregroundColor(AppTheme.muted)
         }
         .frame(maxWidth: .infinity)
@@ -961,12 +982,12 @@ struct TallPageHeader: View {
             }
             if logo == .radar { RadarLogo().frame(width: 98, height: 98) }
             Text(title)
-                .font(.system(size: 48, weight: .black, design: .rounded))
+                .font(.system(size: 40, weight: .black, design: .rounded))
                 .foregroundStyle(LinearGradient(colors: [AppTheme.navy, AppTheme.blue], startPoint: .leading, endPoint: .trailing))
                 .minimumScaleFactor(0.6)
                 .lineLimit(1)
             Text(subtitle)
-                .font(.system(size: 20, weight: .semibold))
+                .font(.system(size: 18, weight: .semibold))
                 .foregroundColor(AppTheme.muted)
                 .multilineTextAlignment(.center)
         }
@@ -1061,7 +1082,8 @@ struct PremiumTabBar: View {
                 .buttonStyle(.plain)
             }
         }
-        .background(.white.opacity(0.90))
+        .frame(maxWidth: .infinity)
+        .background(.white.opacity(0.94))
         .clipShape(RoundedRectangle(cornerRadius: 35, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 35).stroke(Color.white.opacity(0.85), lineWidth: 1))
         .premiumShadow(.black, opacity: 0.08, radius: 22, y: 12)
@@ -1094,10 +1116,10 @@ struct PremiumChoiceCard<Visual: View>: View {
                         .overlay(Circle().stroke(.white.opacity(0.20), lineWidth: 1))
                     Spacer()
                     Text(title)
-                        .font(.system(size: 45, weight: .black, design: .rounded))
+                        .font(.system(size: 30, weight: .black, design: .rounded))
                         .foregroundColor(.white)
                     Text(subtitle)
-                        .font(.system(size: 19, weight: .semibold))
+                        .font(.system(size: 17, weight: .semibold))
                         .foregroundColor(.white.opacity(0.82))
                     Image(systemName: "arrow.right")
                         .font(.system(size: 23, weight: .bold))
@@ -1108,11 +1130,11 @@ struct PremiumChoiceCard<Visual: View>: View {
                 .padding(24)
                 Spacer(minLength: 0)
                 visual()
-                    .frame(width: 230, height: 210)
+                    .frame(width: 190, height: 175)
                     .padding(.trailing, 12)
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 270)
+        .frame(maxWidth: .infinity, minHeight: 242)
         .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 34).stroke(.white.opacity(0.28), lineWidth: 1.4))
         .premiumShadow(accent, opacity: 0.22, radius: 24, y: 16)
@@ -1159,11 +1181,11 @@ struct FeatureVisualCard<Visual: View>: View {
                 .padding(22)
                 Spacer(minLength: 0)
                 visual()
-                    .frame(width: 235, height: 205)
+                    .frame(width: 190, height: 170)
                     .padding(.trailing, 8)
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 260)
+        .frame(maxWidth: .infinity, minHeight: 236)
         .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 34).stroke(.white.opacity(0.30), lineWidth: 1.3))
         .premiumShadow(accent, opacity: 0.20, radius: 24, y: 16)
@@ -1756,7 +1778,9 @@ struct HistoryView: View {
                     .padding(.horizontal, 36)
                 Spacer(minLength: 160)
             }
-            .padding(.top, 120)
+            .frame(maxWidth: .infinity, minHeight: UIScreen.main.bounds.height - 170, alignment: .top)
+            .padding(.top, 60)
+            .padding(.horizontal, 22)
         }
     }
 }
