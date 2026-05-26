@@ -11,7 +11,7 @@ struct EtiketRadarApp: App {
     }
 }
 
-// MARK: - Models
+// MARK: - Data Models
 
 struct ProductOffer: Identifiable, Codable, Hashable {
     var id = UUID()
@@ -70,10 +70,8 @@ struct LabelResponse: Codable, Hashable {
 
 struct APIErrorResponse: Codable { let error: String }
 
-enum AppTab: String, CaseIterable {
-    case home
-    case history
-    case settings
+enum AppTab: CaseIterable {
+    case home, history, settings
 
     var title: String {
         switch self {
@@ -99,45 +97,35 @@ struct APIClient {
     let apiKey: String
 
     private func endpoint(_ path: String) throws -> URL {
-        var cleaned = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        if cleaned.isEmpty { cleaned = "https://etiket-radar-backend.vercel.app/" }
-        if !cleaned.hasSuffix("/") { cleaned += "/" }
-        guard let url = URL(string: cleaned + path) else { throw NSError.userMessage("Backend URL hatalı.") }
+        var clean = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        if clean.isEmpty { clean = "https://etiket-radar-backend.vercel.app/" }
+        if !clean.hasSuffix("/") { clean += "/" }
+        guard let url = URL(string: clean + path) else { throw NSError.userMessage("Backend URL hatalı.") }
         return url
     }
 
     func medicineSearch(query: String, ocrText: String? = nil) async throws -> MedicineResponse {
-        let body: [String: Any] = [
-            "query": query,
-            "ocrText": ocrText ?? ""
-        ]
-        return try await post("v1/medicine-search", body: body)
+        try await post("v1/medicine-search", body: ["query": query, "ocrText": ocrText ?? ""])
     }
 
     func labelSearch(query: String, ocrText: String? = nil) async throws -> LabelResponse {
-        let body: [String: Any] = [
-            "query": query,
-            "ocrText": ocrText ?? ""
-        ]
-        return try await post("v1/label-search", body: body)
+        try await post("v1/label-search", body: ["query": query, "ocrText": ocrText ?? ""])
     }
 
     private func post<T: Decodable>(_ path: String, body: [String: Any]) async throws -> T {
-        let url = try endpoint(path)
-        var request = URLRequest(url: url)
+        var request = URLRequest(url: try endpoint(path))
         request.httpMethod = "POST"
         request.timeoutInterval = 90
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        }
+        let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedKey.isEmpty { request.setValue("Bearer \(trimmedKey)", forHTTPHeaderField: "Authorization") }
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw NSError.userMessage("Sunucudan geçersiz cevap geldi.") }
         guard (200..<300).contains(http.statusCode) else {
-            if let err = try? JSONDecoder().decode(APIErrorResponse.self, from: data) {
-                throw NSError.userMessage(err.error)
+            if let decoded = try? JSONDecoder().decode(APIErrorResponse.self, from: data) {
+                throw NSError.userMessage(decoded.error)
             }
             throw NSError.userMessage("Sunucu hatası: \(http.statusCode)")
         }
@@ -179,42 +167,51 @@ final class OCRService {
 
 // MARK: - Theme
 
-struct AppTheme {
-    static let navy = Color(red: 0.025, green: 0.055, blue: 0.18)
-    static let ink = Color(red: 0.06, green: 0.10, blue: 0.26)
-    static let muted = Color(red: 0.37, green: 0.44, blue: 0.58)
-    static let blue = Color(red: 0.02, green: 0.38, blue: 0.97)
-    static let cyan = Color(red: 0.08, green: 0.80, blue: 0.90)
-    static let emerald = Color(red: 0.00, green: 0.62, blue: 0.47)
-    static let mint = Color(red: 0.08, green: 0.88, blue: 0.68)
-    static let cardStroke = Color(red: 0.80, green: 0.88, blue: 1.00)
+struct ERTheme {
+    static let navy = Color(red: 0.03, green: 0.06, blue: 0.18)
+    static let ink = Color(red: 0.08, green: 0.12, blue: 0.25)
+    static let muted = Color(red: 0.38, green: 0.45, blue: 0.58)
+    static let blue = Color(red: 0.02, green: 0.38, blue: 0.96)
+    static let cyan = Color(red: 0.08, green: 0.77, blue: 0.88)
+    static let emerald = Color(red: 0.00, green: 0.62, blue: 0.48)
+    static let lightStroke = Color(red: 0.80, green: 0.88, blue: 1.0)
 
-    static let screenBackground = LinearGradient(
-        colors: [
-            Color(red: 0.96, green: 0.985, blue: 1.0),
-            Color.white,
-            Color(red: 0.925, green: 0.97, blue: 1.0)
-        ],
+    static let background = LinearGradient(
+        colors: [Color(red: 0.96, green: 0.985, blue: 1.0), .white, Color(red: 0.93, green: 0.97, blue: 1.0)],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
 
-    static let deepBlue = LinearGradient(
-        colors: [Color(red: 0.02, green: 0.12, blue: 0.34), Color(red: 0.02, green: 0.32, blue: 0.86)],
+    static let blueGradient = LinearGradient(
+        colors: [Color(red: 0.02, green: 0.12, blue: 0.34), Color(red: 0.03, green: 0.34, blue: 0.88)],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
 
-    static let deepGreen = LinearGradient(
-        colors: [Color(red: 0.00, green: 0.38, blue: 0.34), Color(red: 0.10, green: 0.78, blue: 0.64)],
+    static let greenGradient = LinearGradient(
+        colors: [Color(red: 0.00, green: 0.38, blue: 0.34), Color(red: 0.08, green: 0.74, blue: 0.60)],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
 }
 
 extension View {
-    func premiumShadow(_ color: Color = .black, opacity: Double = 0.10, radius: CGFloat = 24, y: CGFloat = 14) -> some View {
+    func softShadow(_ color: Color = .black, opacity: Double = 0.08, radius: CGFloat = 18, y: CGFloat = 9) -> some View {
         shadow(color: color.opacity(opacity), radius: radius, x: 0, y: y)
+    }
+}
+
+extension Optional where Wrapped == String {
+    var clean: String? {
+        guard let value = self?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else { return nil }
+        return value
+    }
+}
+
+extension String {
+    var cleanOrNil: String? {
+        let value = trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.isEmpty ? nil : value
     }
 }
 
@@ -225,18 +222,20 @@ struct RootView: View {
     @AppStorage("appApiKey") private var appApiKey = "etiket-radar-123456"
     @State private var selectedTab: AppTab = .home
 
+    private var client: APIClient { APIClient(baseURL: backendBaseURL, apiKey: appApiKey) }
+
     var body: some View {
-        currentScreen
-            .tint(AppTheme.blue)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .background(AppTheme.screenBackground.ignoresSafeArea())
-            .safeAreaInset(edge: .bottom) {
-                PremiumTabBar(selectedTab: $selectedTab)
-                    .padding(.horizontal, 22)
-                    .padding(.top, 8)
-                    .padding(.bottom, 6)
-                    .background(Color.clear)
-            }
+        ZStack {
+            AppBackground().ignoresSafeArea()
+            currentScreen
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            BottomTabBar(selectedTab: $selectedTab)
+                .padding(.horizontal, 16)
+                .padding(.top, 6)
+                .padding(.bottom, 5)
+                .background(Color.clear)
+        }
     }
 
     @ViewBuilder
@@ -250,8 +249,6 @@ struct RootView: View {
             NavigationStack { SettingsView(backendBaseURL: $backendBaseURL, appApiKey: $appApiKey) }
         }
     }
-
-    private var client: APIClient { APIClient(baseURL: backendBaseURL, apiKey: appApiKey) }
 }
 
 // MARK: - Home
@@ -260,51 +257,39 @@ struct HomeView: View {
     let client: APIClient
 
     var body: some View {
-        PremiumScreen {
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 24) {
-                    HomeBrandHeader()
-                        .padding(.top, 8)
-                        .padding(.bottom, 4)
+        AppScaffold {
+            VStack(spacing: 16) {
+                BrandHeader(compact: false)
+                    .padding(.top, 4)
 
-                    NavigationLink {
-                        LabelLandingView(client: client)
-                    } label: {
-                        PremiumChoiceCard(
-                            title: "Etiket",
-                            subtitle: "Ürün fiyatlarını karşılaştır",
-                            icon: "tag.fill",
-                            gradient: AppTheme.deepBlue,
-                            accent: AppTheme.blue
-                        ) {
-                            BarcodeTagIllustration()
-                        }
-                    }
-                    .buttonStyle(.plain)
-
-                    NavigationLink {
-                        MedicineLandingView(client: client)
-                    } label: {
-                        PremiumChoiceCard(
-                            title: "İlaç",
-                            subtitle: "Fiyat, kullanım ve yan etkiler",
-                            icon: "capsule.fill",
-                            gradient: AppTheme.deepGreen,
-                            accent: AppTheme.emerald
-                        ) {
-                            CapsuleHeroIllustration()
-                        }
-                    }
-                    .buttonStyle(.plain)
-
-                    Spacer(minLength: 80)
+                NavigationLink { LabelLandingView(client: client) } label: {
+                    HomeActionCard(
+                        title: "Etiket",
+                        subtitle: "Ürün fiyatlarını karşılaştır",
+                        systemIcon: "tag.fill",
+                        gradient: ERTheme.blueGradient,
+                        accent: ERTheme.blue,
+                        visual: .tag
+                    )
                 }
-                .frame(maxWidth: .infinity, minHeight: UIScreen.main.bounds.height - 170, alignment: .top)
-                .padding(.horizontal, 22)
-                .padding(.bottom, 12)
+                .buttonStyle(.plain)
+
+                NavigationLink { MedicineLandingView(client: client) } label: {
+                    HomeActionCard(
+                        title: "İlaç",
+                        subtitle: "Fiyat, kullanım ve yan etkiler",
+                        systemIcon: "capsule.fill",
+                        gradient: ERTheme.greenGradient,
+                        accent: ERTheme.emerald,
+                        visual: .medicine
+                    )
+                }
+                .buttonStyle(.plain)
             }
+            .padding(.horizontal, 16)
+            .padding(.top, 6)
+            .padding(.bottom, 98)
         }
-        .navigationBarHidden(true)
     }
 }
 
@@ -317,81 +302,67 @@ struct MedicineLandingView: View {
     @State private var showCamera = false
     @State private var loadingMessage: String?
     @State private var errorMessage: String?
-    @State private var response: MedicineResponse?
+    @State private var result: MedicineResponse?
     @State private var navigate = false
 
     var body: some View {
-        PremiumScreen {
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 22) {
-                    TallPageHeader(
-                        title: "İlaç Asistanı",
-                        subtitle: "İlaç bilgilerini hızlıca öğren",
-                        logo: .radar,
-                        showBack: true,
-                        action: { dismiss() }
-                    )
-                    .padding(.top, 8)
+        AppScaffold {
+            VStack(spacing: 14) {
+                PageHeader(title: "İlaç Asistanı", subtitle: "İlaç bilgilerini hızlıca öğren", showBack: true, onBack: { dismiss() })
 
-                    Button { showManual = true } label: {
-                        FeatureVisualCard(
-                            title: "Manuel Ekle",
-                            subtitle: "İlacın adını yazarak ara",
-                            icon: "keyboard.fill",
-                            gradient: AppTheme.deepBlue,
-                            accent: AppTheme.blue
-                        ) {
-                            KeyboardSearchIllustration()
-                        }
-                    }
-                    .buttonStyle(.plain)
+                FeatureCard(
+                    title: "Manuel Ekle",
+                    subtitle: "İlacın adını yazarak ara",
+                    icon: "keyboard.fill",
+                    gradient: ERTheme.blueGradient,
+                    accent: ERTheme.blue,
+                    visual: .keyboard,
+                    action: { showManual = true }
+                )
 
-                    Button { showCamera = true } label: {
-                        FeatureVisualCard(
-                            title: "Fotoğraf Çek",
-                            subtitle: "Kutunun fotoğrafını çek,\nAI algılasın",
-                            icon: "camera.fill",
-                            gradient: AppTheme.deepGreen,
-                            accent: AppTheme.emerald
-                        ) {
-                            MedicineScanIllustration()
-                        }
-                    }
-                    .buttonStyle(.plain)
+                FeatureCard(
+                    title: "Fotoğraf Çek",
+                    subtitle: "Kutunun fotoğrafını çek, AI algılasın",
+                    icon: "camera.fill",
+                    gradient: ERTheme.greenGradient,
+                    accent: ERTheme.emerald,
+                    visual: .medicineScan,
+                    action: { showCamera = true }
+                )
 
-                    SafetyInfoPanel()
-
-                    Spacer(minLength: 80)
-                }
-                .frame(maxWidth: .infinity, minHeight: UIScreen.main.bounds.height - 170, alignment: .top)
-                .padding(.horizontal, 22)
-                .padding(.bottom, 12)
+                InfoPanel(
+                    icon: "shield.checkered",
+                    title: "Güvenliğiniz önceliğimiz",
+                    text: "Fiyat, kullanım talimatı ve yan etkiler gibi bilgileri resmi kaynaklarla birlikte gösterir."
+                )
             }
-            if let loadingMessage { PremiumLoadingOverlay(message: loadingMessage) }
+            .padding(.horizontal, 16)
+            .padding(.top, 6)
+            .padding(.bottom, 104)
         }
-        .navigationBarHidden(true)
+        .overlay { if let loadingMessage { LoadingOverlay(message: loadingMessage) } }
         .sheet(isPresented: $showManual) {
-            ManualSearchSheet(title: "İlaç adı yaz", placeholder: "Örn: Majezik 100 mg veya Ofnol S %0.2") { query in
+            ManualSearchSheet(title: "İlaç adı yaz", placeholder: "Örn: Majezik 100 mg veya Ofnol S") { query in
                 showManual = false
                 Task { await searchMedicine(query: query, ocrText: nil) }
             }
-            .presentationDetents([.height(330)])
+            .presentationDetents([.height(300)])
         }
         .sheet(isPresented: $showCamera) {
             ImagePicker { image in
                 showCamera = false
-                Task { await handleMedicineImage(image) }
+                Task { await readMedicineImage(image) }
             }
         }
         .alert("Uyarı", isPresented: Binding(get: { errorMessage != nil }, set: { _ in errorMessage = nil })) {
             Button("Tamam", role: .cancel) {}
         } message: { Text(errorMessage ?? "") }
         .navigationDestination(isPresented: $navigate) {
-            if let response { MedicineResultView(response: response) }
+            if let result { MedicineResultView(response: result) }
         }
     }
 
-    private func handleMedicineImage(_ image: UIImage) async {
+    private func readMedicineImage(_ image: UIImage) async {
         do {
             loadingMessage = "Fotoğraf okunuyor..."
             let text = try await OCRService.recognizeText(from: image)
@@ -404,11 +375,11 @@ struct MedicineLandingView: View {
     }
 
     private func searchMedicine(query: String, ocrText: String?) async {
-        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { errorMessage = "İlaç adı boş olamaz."; return }
+        let clean = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { errorMessage = "İlaç adı boş olamaz."; return }
         do {
             loadingMessage = "İlaç bilgileri aranıyor..."
-            response = try await client.medicineSearch(query: trimmed, ocrText: ocrText)
+            result = try await client.medicineSearch(query: clean, ocrText: ocrText)
             loadingMessage = nil
             navigate = true
         } catch {
@@ -418,17 +389,16 @@ struct MedicineLandingView: View {
     }
 
     private func bestMedicineQuery(from text: String) -> String {
+        let ignored = ["KULLAN", "PROSPEKT", "BARKOD", "SERİ", "LOT", "SKT", "ML", "TABLET", "SAKL"]
         let lines = text
             .split(separator: "\n")
             .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { $0.count >= 4 }
-
-        let ignored = ["KULLAN", "SAKL", "PROSPEKT", "BARKOD", "SERİ", "LOT", "SKT", "ÜRETİM", "TABLET", "ML"]
-        let candidate = lines.first { line in
+        if let candidate = lines.first(where: { line in
             let upper = line.uppercased()
-            return !ignored.contains { upper.contains($0) }
-        }
-        return candidate ?? text.replacingOccurrences(of: "\n", with: " ")
+            return !ignored.contains(where: { upper.contains($0) })
+        }) { return candidate }
+        return text.replacingOccurrences(of: "\n", with: " ")
     }
 }
 
@@ -441,84 +411,71 @@ struct LabelLandingView: View {
     @State private var showCamera = false
     @State private var loadingMessage: String?
     @State private var errorMessage: String?
-    @State private var response: LabelResponse?
+    @State private var result: LabelResponse?
     @State private var navigate = false
 
     var body: some View {
-        PremiumScreen {
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 22) {
-                    TallPageHeader(
-                        title: "Etiket Karşılaştır",
-                        subtitle: "Mağaza fiyatını internette kontrol et",
-                        logo: .radar,
-                        showBack: true,
-                        action: { dismiss() }
-                    )
-                    .padding(.top, 8)
+        AppScaffold {
+            VStack(spacing: 14) {
+                PageHeader(title: "Etiket Karşılaştır", subtitle: "Mağaza fiyatını internette kontrol et", showBack: true, onBack: { dismiss() })
 
-                    Button { showCamera = true } label: {
-                        FeatureVisualCard(
-                            title: "Etiket Fotoğrafı",
-                            subtitle: "Raf etiketi veya ürün kutusunu çek",
-                            icon: "viewfinder",
-                            gradient: AppTheme.deepBlue,
-                            accent: AppTheme.blue
-                        ) {
-                            BarcodeTagIllustration()
-                        }
-                    }
-                    .buttonStyle(.plain)
+                FeatureCard(
+                    title: "Etiket Fotoğrafı",
+                    subtitle: "Raf etiketi veya ürün kutusunu çek",
+                    icon: "viewfinder",
+                    gradient: ERTheme.blueGradient,
+                    accent: ERTheme.blue,
+                    visual: .tagScan,
+                    action: { showCamera = true }
+                )
 
-                    Button { showManual = true } label: {
-                        FeatureVisualCard(
-                            title: "Manuel Ürün Ara",
-                            subtitle: "Marka, model veya barkod yaz",
-                            icon: "magnifyingglass",
-                            gradient: AppTheme.deepGreen,
-                            accent: AppTheme.emerald
-                        ) {
-                            KeyboardSearchIllustration()
-                        }
-                    }
-                    .buttonStyle(.plain)
+                FeatureCard(
+                    title: "Manuel Ürün Ara",
+                    subtitle: "Marka, model veya barkod yaz",
+                    icon: "magnifyingglass",
+                    gradient: ERTheme.greenGradient,
+                    accent: ERTheme.emerald,
+                    visual: .keyboard,
+                    action: { showManual = true }
+                )
 
-                    LabelInfoPanel()
-                    Spacer(minLength: 80)
-                }
-                .frame(maxWidth: .infinity, minHeight: UIScreen.main.bounds.height - 170, alignment: .top)
-                .padding(.horizontal, 22)
-                .padding(.bottom, 12)
+                InfoPanel(
+                    icon: "cart.badge.questionmark",
+                    title: "Mağazada hızlı kontrol",
+                    text: "Elektronik, market ve mağaza ürünlerinde internet fiyatlarını karşılaştır."
+                )
             }
-            if let loadingMessage { PremiumLoadingOverlay(message: loadingMessage) }
+            .padding(.horizontal, 16)
+            .padding(.top, 6)
+            .padding(.bottom, 104)
         }
-        .navigationBarHidden(true)
+        .overlay { if let loadingMessage { LoadingOverlay(message: loadingMessage) } }
         .sheet(isPresented: $showManual) {
             ManualSearchSheet(title: "Ürün adı yaz", placeholder: "Örn: Sony WH-CH720N siyah") { query in
                 showManual = false
                 Task { await searchLabel(query: query, ocrText: nil) }
             }
-            .presentationDetents([.height(330)])
+            .presentationDetents([.height(300)])
         }
         .sheet(isPresented: $showCamera) {
             ImagePicker { image in
                 showCamera = false
-                Task { await handleLabelImage(image) }
+                Task { await readLabelImage(image) }
             }
         }
         .alert("Uyarı", isPresented: Binding(get: { errorMessage != nil }, set: { _ in errorMessage = nil })) {
             Button("Tamam", role: .cancel) {}
         } message: { Text(errorMessage ?? "") }
         .navigationDestination(isPresented: $navigate) {
-            if let response { LabelResultView(response: response) }
+            if let result { LabelResultView(response: result) }
         }
     }
 
-    private func handleLabelImage(_ image: UIImage) async {
+    private func readLabelImage(_ image: UIImage) async {
         do {
             loadingMessage = "Etiket okunuyor..."
             let text = try await OCRService.recognizeText(from: image)
-            let query = bestLabelQuery(from: text)
+            let query = text.replacingOccurrences(of: "\n", with: " ").split(separator: " ").prefix(14).joined(separator: " ")
             await searchLabel(query: query, ocrText: text)
         } catch {
             loadingMessage = nil
@@ -527,11 +484,11 @@ struct LabelLandingView: View {
     }
 
     private func searchLabel(query: String, ocrText: String?) async {
-        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { errorMessage = "Ürün adı boş olamaz."; return }
+        let clean = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { errorMessage = "Ürün adı boş olamaz."; return }
         do {
             loadingMessage = "İnternet fiyatları aranıyor..."
-            response = try await client.labelSearch(query: trimmed, ocrText: ocrText)
+            result = try await client.labelSearch(query: clean, ocrText: ocrText)
             loadingMessage = nil
             navigate = true
         } catch {
@@ -539,76 +496,40 @@ struct LabelLandingView: View {
             errorMessage = error.localizedDescription
         }
     }
-
-    private func bestLabelQuery(from text: String) -> String {
-        let flat = text.replacingOccurrences(of: "\n", with: " ")
-        return flat.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.prefix(14).joined(separator: " ")
-    }
 }
 
-// MARK: - Result Views
+// MARK: - Result Screens
 
 struct MedicineResultView: View {
     let response: MedicineResponse
     @State private var selectedOffer: ProductOffer?
 
-    private var medName: String { response.medicine?.name?.nilIfEmpty ?? response.query }
-    private var formText: String {
-        [response.medicine?.activeIngredient, response.medicine?.form, response.medicine?.packageInfo]
-            .compactMap { $0?.nilIfEmpty }
+    private var medicineName: String { response.medicine?.name.clean ?? response.query }
+    private var details: String {
+        [response.medicine?.activeIngredient.clean, response.medicine?.form.clean, response.medicine?.packageInfo.clean]
+            .compactMap { $0 }
             .joined(separator: " • ")
     }
 
     var body: some View {
-        PremiumScreen {
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 20) {
-                    CompactPageHeader(title: "İlaç Sonuçları", showBack: true)
-                        .padding(.top, 14)
-
-                    RecognizedChip(text: response.query, status: "AI ile tarandı")
-
-                    MedicineHeroResultCard(
-                        name: medName,
-                        active: response.medicine?.activeIngredient,
-                        form: response.medicine?.form,
-                        packageInfo: response.medicine?.packageInfo
-                    )
-
-                    PriceListCard(
-                        title: "İnternet Fiyatları",
-                        offers: response.offers,
-                        rowButtonTitle: "Satın Al",
-                        accent: AppTheme.blue,
-                        onTap: { selectedOffer = $0 }
-                    )
-
-                    ExpandInfoCard(title: "Kullanım Talimatı", icon: "doc.text.fill", items: response.usageInstructions)
-                    ExpandInfoCard(title: "Yan Etkiler", icon: "exclamationmark.triangle.fill", items: response.sideEffects, linkText: "Tüm yan etkileri gör")
-
-                    if !response.warnings.isEmpty {
-                        ExpandInfoCard(title: "Önemli Uyarılar", icon: "shield.lefthalf.filled", items: response.warnings)
-                    }
-
-                    MedicalDisclaimer(text: response.disclaimer ?? "Doktor tavsiyesi değildir. Sağlık durumunuzla ilgili kararlar için doktorunuza veya eczacınıza danışınız.")
-                    SourcesCompact(sources: response.sources)
-                    Spacer(minLength: 70)
-                }
-                .frame(maxWidth: .infinity, minHeight: UIScreen.main.bounds.height - 170, alignment: .top)
-                .padding(.horizontal, 20)
-                .padding(.bottom, 12)
+        AppScaffold {
+            VStack(spacing: 14) {
+                PageHeader(title: "İlaç Sonuçları", subtitle: nil, showBack: true)
+                ResultChip(text: response.query, status: "AI ile tarandı")
+                MedicineSummaryCard(name: medicineName, info: response.medicine)
+                OfferListCard(title: "İnternet Fiyatları", offers: response.offers, buttonTitle: "Satın Al", accent: ERTheme.blue) { selectedOffer = $0 }
+                ExpandableTextCard(title: "Kullanım Talimatı", icon: "doc.text.fill", items: response.usageInstructions)
+                ExpandableTextCard(title: "Yan Etkiler", icon: "exclamationmark.triangle.fill", items: response.sideEffects, linkText: "Tüm yan etkileri gör")
+                if !response.warnings.isEmpty { ExpandableTextCard(title: "Önemli Uyarılar", icon: "shield.lefthalf.filled", items: response.warnings) }
+                DisclaimerView(text: response.disclaimer ?? "Doktor tavsiyesi değildir. Sağlık durumunuzla ilgili kararlar için doktorunuza veya eczacınıza danışınız.")
+                SourcesView(sources: response.sources)
             }
+            .padding(.horizontal, 16)
+            .padding(.top, 6)
+            .padding(.bottom, 104)
         }
-        .navigationBarHidden(true)
         .fullScreenCover(item: $selectedOffer) { offer in
-            FullScreenPurchaseView(
-                title: "Satın Al",
-                primaryName: medName,
-                subtitle: formText.isEmpty ? "İlaç fiyat bilgisi" : formText,
-                offers: response.offers,
-                initialOffer: offer,
-                productKind: .medicine
-            )
+            PurchaseScreen(title: "Satın Al", productName: medicineName, subtitle: details.isEmpty ? "İlaç fiyat bilgisi" : details, offers: response.offers, initialOffer: offer, kind: .medicine)
         }
     }
 }
@@ -617,1120 +538,1194 @@ struct LabelResultView: View {
     let response: LabelResponse
     @State private var selectedOffer: ProductOffer?
 
-    private var productTitle: String { response.product?.productName?.nilIfEmpty ?? response.query }
-    private var bestOffer: ProductOffer? { response.offers.first }
+    private var productTitle: String { response.product?.productName.clean ?? response.query }
 
     var body: some View {
-        PremiumScreen {
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 20) {
-                    CompactPageHeader(title: "Etiket Karşılaştır", showBack: true, subtitle: "AI ile ürün bilgisi ve fiyat karşılaştırma")
-                        .padding(.top, 14)
-
-                    LabelProductHeroCard(product: response.product, fallbackTitle: productTitle)
-
-                    PriceListCard(
-                        title: "Fiyat Karşılaştırması",
-                        offers: response.offers,
-                        rowButtonTitle: nil,
-                        accent: AppTheme.emerald,
-                        highlightBest: true,
-                        onTap: { selectedOffer = $0 }
-                    )
-
-                    if let bestOffer {
-                        BestPriceSummary(offer: bestOffer) { selectedOffer = bestOffer }
-                    }
-
-                    ExpandInfoCard(title: "Alışveriş Tavsiyeleri", icon: "lightbulb.fill", items: response.suggestions)
-                    SourcesCompact(sources: response.sources)
-                    Spacer(minLength: 70)
-                }
-                .frame(maxWidth: .infinity, minHeight: UIScreen.main.bounds.height - 170, alignment: .top)
-                .padding(.horizontal, 20)
-                .padding(.bottom, 12)
+        AppScaffold {
+            VStack(spacing: 14) {
+                PageHeader(title: "Etiket Karşılaştır", subtitle: "AI ile ürün bilgisi ve fiyat karşılaştırma", showBack: true)
+                LabelSummaryCard(product: response.product, fallback: productTitle)
+                OfferListCard(title: "Fiyat Karşılaştırması", offers: response.offers, buttonTitle: nil, accent: ERTheme.emerald, highlightBest: true) { selectedOffer = $0 }
+                if let best = response.offers.first { BestPriceCard(offer: best) { selectedOffer = best } }
+                ExpandableTextCard(title: "Alışveriş Tavsiyeleri", icon: "lightbulb.fill", items: response.suggestions)
+                SourcesView(sources: response.sources)
             }
+            .padding(.horizontal, 16)
+            .padding(.top, 6)
+            .padding(.bottom, 104)
         }
-        .navigationBarHidden(true)
         .fullScreenCover(item: $selectedOffer) { offer in
-            FullScreenPurchaseView(
-                title: "Siteye Git",
-                primaryName: productTitle,
-                subtitle: response.product?.description ?? "Ürün fiyat karşılaştırması",
-                offers: response.offers,
-                initialOffer: offer,
-                productKind: .label
-            )
+            PurchaseScreen(title: "Siteye Git", productName: productTitle, subtitle: response.product?.description.clean ?? "Ürün fiyat karşılaştırması", offers: response.offers, initialOffer: offer, kind: .label)
         }
     }
 }
 
-// MARK: - Full Screen Purchase
+// MARK: - Purchase Full Screen
 
-enum PurchaseProductKind { case medicine, label }
+enum PurchaseKind { case medicine, label }
 
-struct FullScreenPurchaseView: View {
+struct PurchaseScreen: View {
     let title: String
-    let primaryName: String
+    let productName: String
     let subtitle: String
     let offers: [ProductOffer]
-    let productKind: PurchaseProductKind
+    let kind: PurchaseKind
     @State private var selected: ProductOffer
     @Environment(\.dismiss) private var dismiss
 
-    init(title: String, primaryName: String, subtitle: String, offers: [ProductOffer], initialOffer: ProductOffer, productKind: PurchaseProductKind) {
+    init(title: String, productName: String, subtitle: String, offers: [ProductOffer], initialOffer: ProductOffer, kind: PurchaseKind) {
         self.title = title
-        self.primaryName = primaryName
+        self.productName = productName
         self.subtitle = subtitle
         self.offers = offers.isEmpty ? [initialOffer] : offers
-        self.productKind = productKind
+        self.kind = kind
         _selected = State(initialValue: initialOffer)
     }
 
     var body: some View {
-        PremiumScreen {
+        ZStack {
+            AppBackground()
             VStack(spacing: 0) {
-                HStack(spacing: 12) {
-                    Image(systemName: "bag.fill")
-                        .font(.title2.weight(.black))
-                        .foregroundColor(AppTheme.blue)
-                        .frame(width: 50, height: 50)
-                        .background(.white.opacity(0.92))
-                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                        .premiumShadow(AppTheme.blue, opacity: 0.12, radius: 18, y: 8)
-
+                HStack(spacing: 10) {
+                    CircleIcon(systemName: "bag.fill", color: ERTheme.blue, size: 44)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(title)
-                            .font(.system(size: 30, weight: .black, design: .rounded))
-                            .foregroundColor(AppTheme.navy)
+                            .font(.system(size: 28, weight: .black, design: .rounded))
+                            .foregroundColor(ERTheme.navy)
                         Text("Fiyat ve link bilgisi")
-                            .font(.callout.weight(.semibold))
-                            .foregroundColor(AppTheme.muted)
+                            .font(.footnote.weight(.semibold))
+                            .foregroundColor(ERTheme.muted)
                     }
                     Spacer()
                     Button { dismiss() } label: {
                         Image(systemName: "xmark")
-                            .font(.title3.weight(.bold))
-                            .foregroundColor(AppTheme.ink)
-                            .frame(width: 50, height: 50)
+                            .font(.headline.weight(.bold))
+                            .foregroundColor(ERTheme.ink)
+                            .frame(width: 44, height: 44)
                             .background(.white.opacity(0.92))
                             .clipShape(Circle())
-                            .premiumShadow(.black, opacity: 0.06, radius: 14, y: 6)
                     }
                 }
-                 .padding(.horizontal, 20)
-                .padding(.top, 8)
-                .padding(.bottom, 18)
+                .padding(.horizontal, 16)
+                .padding(.top, 54)
+                .padding(.bottom, 10)
 
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 18) {
-                        PurchaseProductPanel(name: primaryName, subtitle: subtitle, kind: productKind)
+                    VStack(spacing: 14) {
+                        PurchaseProductCard(productName: productName, subtitle: subtitle, kind: kind)
 
                         VStack(spacing: 0) {
                             ForEach(offers) { offer in
-                                PurchaseOfferRow(
-                                    offer: offer,
-                                    selected: offer == selected,
-                                    action: { selected = offer }
-                                )
-                                if offer.id != offers.last?.id { Divider().padding(.leading, 78) }
+                                PurchaseRow(offer: offer, selected: offer == selected) { selected = offer }
+                                if offer.id != offers.last?.id { Divider().padding(.leading, 64) }
                             }
                         }
-                        .padding(12)
-                        .background(.white.opacity(0.94))
-                        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: 28).stroke(AppTheme.cardStroke.opacity(0.85), lineWidth: 1))
-                        .premiumShadow(.black, opacity: 0.07, radius: 24, y: 14)
-
-                        HStack(spacing: 8) {
-                            Image(systemName: "info.circle")
-                                .foregroundColor(AppTheme.muted)
-                            Text(productKind == .medicine ? "Fiyatlar bilgilendirme amaçlıdır. Satın almadan önce site ve eczane bilgisini kontrol edin." : "Fiyatlar anlık değişebilir. Satın almadan önce stok, kargo ve satıcı bilgisini kontrol edin.")
-                                .font(.footnote.weight(.medium))
-                                .foregroundColor(AppTheme.muted)
-                            Spacer()
-                        }
-                        .padding(.horizontal, 4)
-
-                        if productKind == .medicine {
-                            MedicalDisclaimer(text: "Doktor tavsiyesi değildir. İlacı kullanmadan önce prospektüsü okuyun ve doktor/eczacı görüşü alın.")
-                        }
-
-                        Spacer(minLength: 170)
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 8)
-                }
-            }
-
-            VStack(spacing: 12) {
-                Button { openURL(selected.url) } label: {
-                    HStack(spacing: 12) {
-                        Image(systemName: "arrow.up.right.square.fill")
-                        Text("Siteye Git")
-                    }
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 18)
-                    .background(
-                        LinearGradient(colors: [AppTheme.blue, Color(red: 0.00, green: 0.25, blue: 0.90)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                    .premiumShadow(AppTheme.blue, opacity: 0.24, radius: 22, y: 12)
-                }
-
-                Button { dismiss() } label: {
-                    Text("Kapat")
-                        .font(.system(size: 18, weight: .bold, design: .rounded))
-                        .foregroundColor(AppTheme.blue)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 17)
+                        .padding(8)
                         .background(.white.opacity(0.94))
                         .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: 22).stroke(AppTheme.blue.opacity(0.16), lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: 22).stroke(ERTheme.lightStroke.opacity(0.8), lineWidth: 1))
+                        .softShadow()
+
+                        HStack(spacing: 7) {
+                            Image(systemName: "info.circle")
+                            Text(kind == .medicine ? "Fiyatlar bilgilendirme amaçlıdır. Satın almadan önce site ve eczane bilgisini kontrol edin." : "Fiyatlar anlık değişebilir. Satın almadan önce stok, kargo ve satıcı bilgisini kontrol edin.")
+                            Spacer()
+                        }
+                        .font(.caption.weight(.medium))
+                        .foregroundColor(ERTheme.muted)
+
+                        if kind == .medicine {
+                            DisclaimerView(text: "Doktor tavsiyesi değildir. İlacı kullanmadan önce prospektüsü okuyun ve doktor/eczacı görüşü alın.")
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 120)
                 }
             }
-             .padding(.horizontal, 20)
-            .padding(.bottom, 18)
-            .frame(maxHeight: .infinity, alignment: .bottom)
-            .background(alignment: .bottom) {
-                LinearGradient(colors: [.clear, Color.white.opacity(0.96)], startPoint: .top, endPoint: .bottom)
-                    .frame(height: 220)
-                    .ignoresSafeArea(edges: .bottom)
-            }
         }
-        .ignoresSafeArea(.keyboard)
+        .ignoresSafeArea()
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            VStack(spacing: 10) {
+                Button { openURL(selected.url) } label: {
+                    Label("Siteye Git", systemImage: "arrow.up.right.square.fill")
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 15)
+                        .background(LinearGradient(colors: [ERTheme.blue, Color(red: 0.0, green: 0.25, blue: 0.88)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                }
+                Button { dismiss() } label: {
+                    Text("Kapat")
+                        .font(.system(size: 17, weight: .bold, design: .rounded))
+                        .foregroundColor(ERTheme.blue)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(.white.opacity(0.96))
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 18).stroke(ERTheme.blue.opacity(0.16), lineWidth: 1))
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+            .padding(.bottom, 5)
+            .background(LinearGradient(colors: [.clear, .white.opacity(0.96)], startPoint: .top, endPoint: .bottom).ignoresSafeArea())
+        }
     }
 }
 
-struct PurchaseProductPanel: View {
-    let name: String
-    let subtitle: String
-    let kind: PurchaseProductKind
+// MARK: - Shared Screen Structure
 
-    var body: some View {
-        HStack(spacing: 18) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(Color(red: 0.94, green: 0.97, blue: 1.0))
-                    .frame(width: 122, height: 122)
-                if kind == .medicine {
-                    MedicineBoxMini(name: name)
-                        .frame(width: 90, height: 100)
-                } else {
-                    BarcodeTagIllustration()
-                        .frame(width: 110, height: 94)
-                }
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text(name)
-                    .font(.system(size: 28, weight: .black, design: .rounded))
-                    .foregroundColor(AppTheme.navy)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.72)
-                Text(subtitle)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(AppTheme.muted)
-                    .lineLimit(3)
-            }
-            Spacer()
-        }
-        .padding(18)
-        .background(.white.opacity(0.94))
-        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 30).stroke(AppTheme.cardStroke.opacity(0.85), lineWidth: 1))
-        .premiumShadow(.black, opacity: 0.07, radius: 22, y: 12)
-    }
-}
-
-struct PurchaseOfferRow: View {
-    let offer: ProductOffer
-    let selected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 14) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(selected ? AppTheme.blue.opacity(0.16) : Color(red: 0.94, green: 0.97, blue: 1.0))
-                        .frame(width: 52, height: 52)
-                    Text(String(offer.siteName.prefix(1)).uppercased())
-                        .font(.system(size: 22, weight: .black, design: .rounded))
-                        .foregroundColor(selected ? AppTheme.blue : AppTheme.emerald)
-                }
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(offer.siteName)
-                        .font(.system(size: 18, weight: .black, design: .rounded))
-                        .foregroundColor(AppTheme.navy)
-                        .lineLimit(1)
-                    Text(offer.note?.nilIfEmpty ?? offer.title)
-                        .font(.caption.weight(.semibold))
-                        .foregroundColor(AppTheme.muted)
-                        .lineLimit(1)
-                }
-                Spacer()
-                Text(offer.priceText.nilIfEmpty ?? "Fiyat sayfada")
-                    .font(.system(size: 18, weight: .black, design: .rounded))
-                    .foregroundColor(AppTheme.blue)
-                    .lineLimit(1)
-                Image(systemName: "arrow.up.right.square")
-                    .font(.title3.weight(.bold))
-                    .foregroundColor(AppTheme.muted)
-            }
-            .padding(.vertical, 12)
-            .padding(.horizontal, 10)
-            .background(selected ? Color(red: 0.94, green: 0.98, blue: 1.0) : Color.clear)
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-// MARK: - Reusable Premium Screens
-
-struct PremiumScreen<Content: View>: View {
+struct AppScaffold<Content: View>: View {
     @ViewBuilder var content: () -> Content
 
     var body: some View {
-        GeometryReader { proxy in
-            ZStack(alignment: .top) {
-                AppTheme.screenBackground.ignoresSafeArea()
-                RadarBackground()
-                    .ignoresSafeArea()
+        ZStack {
+            AppBackground().ignoresSafeArea()
+            ScrollView(showsIndicators: false) {
                 content()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .frame(maxWidth: .infinity, alignment: .top)
             }
-            .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
         }
+        .navigationBarHidden(true)
     }
 }
 
-struct RadarBackground: View {
+struct AppBackground: View {
     var body: some View {
         ZStack {
-            ForEach(0..<5) { index in
-                Circle()
-                    .stroke(Color.blue.opacity(0.035), lineWidth: 1)
-                    .frame(width: CGFloat(250 + index * 145), height: CGFloat(250 + index * 145))
-                    .offset(y: CGFloat(-310 + index * 16))
+            ERTheme.background
+            GeometryReader { proxy in
+                ZStack {
+                    ForEach(0..<5) { i in
+                        Circle()
+                            .stroke(ERTheme.blue.opacity(0.035), lineWidth: 1)
+                            .frame(width: CGFloat(150 + i * 96), height: CGFloat(150 + i * 96))
+                            .position(x: proxy.size.width / 2, y: 72 + CGFloat(i * 6))
+                    }
+                    Circle().fill(ERTheme.cyan.opacity(0.35)).frame(width: 9, height: 9).position(x: proxy.size.width * 0.83, y: 95)
+                    Circle().fill(ERTheme.blue.opacity(0.35)).frame(width: 7, height: 7).position(x: proxy.size.width * 0.18, y: 142)
+                    WaveDots()
+                        .stroke(ERTheme.blue.opacity(0.07), style: StrokeStyle(lineWidth: 1, lineCap: .round, dash: [1, 8]))
+                        .frame(height: 220)
+                        .position(x: proxy.size.width / 2, y: proxy.size.height - 160)
+                }
             }
-            Circle().fill(AppTheme.cyan.opacity(0.55)).frame(width: 11, height: 11).offset(x: 140, y: -278)
-            Circle().fill(AppTheme.blue.opacity(0.48)).frame(width: 8, height: 8).offset(x: -158, y: -225)
-            Circle().fill(AppTheme.emerald.opacity(0.46)).frame(width: 12, height: 12).offset(x: 196, y: 28)
-            DottedWave()
-                .stroke(AppTheme.blue.opacity(0.09), style: StrokeStyle(lineWidth: 1, lineCap: .round, dash: [1, 9]))
-                .frame(height: 280)
-                .offset(y: 360)
         }
     }
 }
 
-struct DottedWave: Shape {
+struct WaveDots: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        for i in 0..<18 {
+        for i in 0..<14 {
             let y = rect.minY + CGFloat(i) * 13
-            path.move(to: CGPoint(x: rect.minX - 20, y: y + sin(CGFloat(i) * 0.7) * 14))
+            path.move(to: CGPoint(x: rect.minX - 15, y: y + sin(CGFloat(i) * 0.7) * 12))
             path.addCurve(
-                to: CGPoint(x: rect.maxX + 30, y: y + 34),
-                control1: CGPoint(x: rect.width * 0.28, y: y - 40),
-                control2: CGPoint(x: rect.width * 0.70, y: y + 76)
+                to: CGPoint(x: rect.maxX + 20, y: y + 26),
+                control1: CGPoint(x: rect.width * 0.28, y: y - 34),
+                control2: CGPoint(x: rect.width * 0.72, y: y + 62)
             )
         }
         return path
     }
 }
 
-struct HomeBrandHeader: View {
+// MARK: - Header / Tab
+
+struct BrandHeader: View {
+    let compact: Bool
+
     var body: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: compact ? 5 : 8) {
             RadarLogo()
-                .frame(width: 112, height: 112)
+                .frame(width: compact ? 52 : 68, height: compact ? 52 : 68)
             Text("EtiketRadar")
-                .font(.system(size: 42, weight: .black, design: .rounded))
-                .foregroundStyle(
-                    LinearGradient(colors: [AppTheme.navy, AppTheme.blue], startPoint: .leading, endPoint: .trailing)
-                )
-                .minimumScaleFactor(0.7)
+                .font(.system(size: compact ? 26 : 33, weight: .black, design: .rounded))
+                .foregroundStyle(LinearGradient(colors: [ERTheme.navy, ERTheme.blue], startPoint: .leading, endPoint: .trailing))
+                .minimumScaleFactor(0.75)
                 .lineLimit(1)
             Text("Akıllı fiyat ve ürün asistanı")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundColor(AppTheme.muted)
-        }
-        .frame(maxWidth: .infinity)
-    }
-}
-
-enum HeaderLogoStyle { case radar, none }
-
-struct TallPageHeader: View {
-    let title: String
-    let subtitle: String
-    let logo: HeaderLogoStyle
-    let showBack: Bool
-    let action: () -> Void
-
-    var body: some View {
-        VStack(spacing: 12) {
-            HStack {
-                if showBack { RoundIconButton(systemName: "arrow.left", action: action) }
-                Spacer()
-                NotificationButton()
-            }
-            if logo == .radar { RadarLogo().frame(width: 98, height: 98) }
-            Text(title)
-                .font(.system(size: 40, weight: .black, design: .rounded))
-                .foregroundStyle(LinearGradient(colors: [AppTheme.navy, AppTheme.blue], startPoint: .leading, endPoint: .trailing))
-                .minimumScaleFactor(0.6)
+                .font(.system(size: compact ? 12 : 15, weight: .semibold))
+                .foregroundColor(ERTheme.muted)
                 .lineLimit(1)
-            Text(subtitle)
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(AppTheme.muted)
-                .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
     }
 }
 
-struct CompactPageHeader: View {
+struct PageHeader: View {
     @Environment(\.dismiss) private var dismiss
     let title: String
-    var showBack: Bool
-    var subtitle: String? = nil
+    let subtitle: String?
+    var showBack: Bool = false
+    var onBack: (() -> Void)? = nil
 
     var body: some View {
-        HStack(alignment: .center) {
-            if showBack { RoundIconButton(systemName: "arrow.left", action: { dismiss() }) }
-            Spacer()
-            VStack(spacing: 4) {
-                Text(title)
-                    .font(.system(size: 34, weight: .black, design: .rounded))
-                    .foregroundColor(AppTheme.navy)
-                    .minimumScaleFactor(0.72)
-                    .lineLimit(1)
-                if let subtitle {
-                    Text(subtitle)
-                        .font(.callout.weight(.semibold))
-                        .foregroundColor(AppTheme.muted)
-                        .lineLimit(2)
+        VStack(spacing: 8) {
+            HStack {
+                if showBack {
+                    HeaderButton(systemName: "arrow.left") { (onBack ?? { dismiss() })() }
+                } else {
+                    Spacer().frame(width: 44, height: 44)
                 }
+                Spacer()
+                HeaderButton(systemName: "bell") {}
+                    .overlay(alignment: .topTrailing) {
+                        Circle().fill(ERTheme.emerald).frame(width: 8, height: 8).offset(x: -4, y: 4)
+                    }
             }
-            Spacer()
-            NotificationButton()
+
+            Text(title)
+                .font(.system(size: 28, weight: .black, design: .rounded))
+                .foregroundColor(ERTheme.navy)
+                .minimumScaleFactor(0.70)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity)
+
+            if let subtitle {
+                Text(subtitle)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(ERTheme.muted)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+            }
         }
     }
 }
 
-struct RoundIconButton: View {
+struct HeaderButton: View {
     let systemName: String
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             Image(systemName: systemName)
-                .font(.system(size: 22, weight: .bold))
-                .foregroundColor(AppTheme.navy)
-                .frame(width: 58, height: 58)
+                .font(.system(size: 18, weight: .bold))
+                .foregroundColor(ERTheme.navy)
+                .frame(width: 44, height: 44)
                 .background(.white.opacity(0.94))
-                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                .premiumShadow(.black, opacity: 0.06, radius: 15, y: 8)
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .softShadow(.black, opacity: 0.05, radius: 10, y: 5)
         }
+        .buttonStyle(.plain)
     }
 }
 
-struct NotificationButton: View {
-    var body: some View {
-        ZStack(alignment: .topTrailing) {
-            Image(systemName: "bell")
-                .font(.system(size: 22, weight: .bold))
-                .foregroundColor(AppTheme.navy)
-                .frame(width: 58, height: 58)
-                .background(.white.opacity(0.94))
-                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                .premiumShadow(.black, opacity: 0.06, radius: 15, y: 8)
-            Circle()
-                .fill(AppTheme.emerald)
-                .frame(width: 11, height: 11)
-                .offset(x: 1, y: -1)
-        }
-    }
-}
-
-struct PremiumTabBar: View {
+struct BottomTabBar: View {
     @Binding var selectedTab: AppTab
 
     var body: some View {
         HStack(spacing: 0) {
             ForEach(AppTab.allCases, id: \.self) { tab in
                 Button { selectedTab = tab } label: {
-                    VStack(spacing: 6) {
+                    VStack(spacing: 4) {
                         Image(systemName: tab.icon)
-                            .font(.system(size: 25, weight: .bold))
+                            .font(.system(size: 20, weight: .bold))
                         Text(tab.title)
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                            .font(.system(size: 11.5, weight: .bold, design: .rounded))
                         Circle()
-                            .fill(selectedTab == tab ? AppTheme.blue : .clear)
-                            .frame(width: 6, height: 6)
+                            .fill(selectedTab == tab ? ERTheme.blue : .clear)
+                            .frame(width: 5, height: 5)
                     }
-                    .foregroundColor(selectedTab == tab ? AppTheme.blue : AppTheme.muted)
+                    .foregroundColor(selectedTab == tab ? ERTheme.blue : ERTheme.muted)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 15)
+                    .padding(.vertical, 10)
                 }
                 .buttonStyle(.plain)
             }
         }
-        .frame(maxWidth: .infinity)
-        .background(.white.opacity(0.94))
-        .clipShape(RoundedRectangle(cornerRadius: 35, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 35).stroke(Color.white.opacity(0.85), lineWidth: 1))
-        .premiumShadow(.black, opacity: 0.08, radius: 22, y: 12)
+        .background(.white.opacity(0.95))
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 28).stroke(Color.white.opacity(0.9), lineWidth: 1))
+        .softShadow(.black, opacity: 0.08, radius: 17, y: 8)
     }
 }
 
 // MARK: - Cards
 
-struct PremiumChoiceCard<Visual: View>: View {
+enum HomeVisualType { case tag, medicine }
+enum FeatureVisualType { case keyboard, medicineScan, tagScan }
+
+struct HomeActionCard: View {
     let title: String
     let subtitle: String
-    let icon: String
+    let systemIcon: String
     let gradient: LinearGradient
     let accent: Color
-    @ViewBuilder let visual: () -> Visual
+    let visual: HomeVisualType
 
     var body: some View {
         ZStack {
             gradient
-            DottedWave()
-                .stroke(.white.opacity(0.16), style: StrokeStyle(lineWidth: 1, lineCap: .round, dash: [1, 8]))
-                .offset(y: 66)
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 14) {
-                    Image(systemName: icon)
-                        .font(.system(size: 28, weight: .black))
-                        .foregroundColor(.white)
-                        .frame(width: 72, height: 72)
-                        .background(Circle().fill(accent.opacity(0.85)))
-                        .overlay(Circle().stroke(.white.opacity(0.20), lineWidth: 1))
-                    Spacer()
+            WaveDots()
+                .stroke(.white.opacity(0.12), style: StrokeStyle(lineWidth: 1, lineCap: .round, dash: [1, 7]))
+                .offset(y: 48)
+
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 8) {
+                    CircleIcon(systemName: systemIcon, color: accent, size: 48, foreground: .white)
+                    Spacer(minLength: 2)
                     Text(title)
                         .font(.system(size: 30, weight: .black, design: .rounded))
                         .foregroundColor(.white)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                     Text(subtitle)
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(.white.opacity(0.82))
-                    Image(systemName: "arrow.right")
-                        .font(.system(size: 23, weight: .bold))
-                        .foregroundColor(.white)
-                        .frame(width: 62, height: 62)
-                        .background(Circle().stroke(.white.opacity(0.38), lineWidth: 2))
+                        .lineLimit(2)
+                    CircleArrow()
                 }
-                .padding(24)
-                Spacer(minLength: 0)
-                visual()
-                    .frame(width: 190, height: 175)
-                    .padding(.trailing, 12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Group {
+                    switch visual {
+                    case .tag: BarcodeTagArt()
+                    case .medicine: CapsuleArt()
+                    }
+                }
+                .frame(width: 122, height: 122)
+                .padding(.trailing, 2)
             }
+            .padding(16)
         }
-        .frame(maxWidth: .infinity, minHeight: 242)
-        .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 34).stroke(.white.opacity(0.28), lineWidth: 1.4))
-        .premiumShadow(accent, opacity: 0.22, radius: 24, y: 16)
+        .frame(maxWidth: .infinity, minHeight: 168, maxHeight: 172)
+        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 26).stroke(.white.opacity(0.26), lineWidth: 1))
+        .softShadow(accent, opacity: 0.18, radius: 18, y: 10)
     }
 }
 
-struct FeatureVisualCard<Visual: View>: View {
+struct FeatureCard: View {
     let title: String
     let subtitle: String
     let icon: String
     let gradient: LinearGradient
     let accent: Color
-    @ViewBuilder let visual: () -> Visual
-
-    var body: some View {
-        ZStack {
-            gradient
-            DottedWave()
-                .stroke(.white.opacity(0.14), style: StrokeStyle(lineWidth: 1, lineCap: .round, dash: [1, 8]))
-                .offset(y: 74)
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 14) {
-                    Image(systemName: icon)
-                        .font(.system(size: 28, weight: .black))
-                        .foregroundColor(.white)
-                        .frame(width: 70, height: 70)
-                        .background(Circle().fill(accent.opacity(0.88)))
-                        .overlay(Circle().stroke(.white.opacity(0.20), lineWidth: 1))
-                    Spacer()
-                    Text(title)
-                        .font(.system(size: 36, weight: .black, design: .rounded))
-                        .foregroundColor(.white)
-                        .minimumScaleFactor(0.8)
-                    Text(subtitle)
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.white.opacity(0.83))
-                        .lineLimit(2)
-                    Image(systemName: "arrow.right")
-                        .font(.system(size: 23, weight: .bold))
-                        .foregroundColor(.white)
-                        .frame(width: 58, height: 58)
-                        .background(Circle().stroke(.white.opacity(0.38), lineWidth: 2))
-                }
-                .padding(22)
-                Spacer(minLength: 0)
-                visual()
-                    .frame(width: 190, height: 170)
-                    .padding(.trailing, 8)
-            }
-        }
-        .frame(maxWidth: .infinity, minHeight: 236)
-        .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 34).stroke(.white.opacity(0.30), lineWidth: 1.3))
-        .premiumShadow(accent, opacity: 0.20, radius: 24, y: 16)
-    }
-}
-
-struct SafetyInfoPanel: View {
-    var body: some View {
-        HStack(spacing: 16) {
-            Image(systemName: "shield.checkered")
-                .font(.system(size: 28, weight: .black))
-                .foregroundColor(AppTheme.blue)
-                .frame(width: 62, height: 62)
-                .background(AppTheme.blue.opacity(0.12))
-                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Güvenliğiniz önceliğimiz")
-                    .font(.system(size: 20, weight: .black, design: .rounded))
-                    .foregroundColor(AppTheme.navy)
-                Text("Fiyat, kullanım talimatı ve yan etkiler gibi detaylara ulaşabilirsiniz.")
-                    .font(.callout.weight(.semibold))
-                    .foregroundColor(AppTheme.muted)
-            }
-            Spacer()
-        }
-        .padding(18)
-        .background(.white.opacity(0.86))
-        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 26).stroke(AppTheme.cardStroke.opacity(0.75), lineWidth: 1))
-        .premiumShadow(.black, opacity: 0.06, radius: 20, y: 12)
-    }
-}
-
-struct LabelInfoPanel: View {
-    var body: some View {
-        HStack(spacing: 16) {
-            Image(systemName: "cart.badge.questionmark")
-                .font(.system(size: 28, weight: .black))
-                .foregroundColor(AppTheme.emerald)
-                .frame(width: 62, height: 62)
-                .background(AppTheme.emerald.opacity(0.12))
-                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Mağazada hızlı kontrol")
-                    .font(.system(size: 20, weight: .black, design: .rounded))
-                    .foregroundColor(AppTheme.navy)
-                Text("Elektronik, market, kozmetik ve mağaza ürünlerinde internet fiyatlarını karşılaştırın.")
-                    .font(.callout.weight(.semibold))
-                    .foregroundColor(AppTheme.muted)
-            }
-            Spacer()
-        }
-        .padding(18)
-        .background(.white.opacity(0.86))
-        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 26).stroke(AppTheme.cardStroke.opacity(0.75), lineWidth: 1))
-        .premiumShadow(.black, opacity: 0.06, radius: 20, y: 12)
-    }
-}
-
-// MARK: - Result Components
-
-struct RecognizedChip: View {
-    let text: String
-    let status: String
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "tag.fill")
-                .font(.headline)
-                .foregroundColor(.white)
-                .frame(width: 46, height: 46)
-                .background(Circle().fill(AppTheme.blue))
-            Text(text)
-                .font(.system(size: 19, weight: .black, design: .rounded))
-                .foregroundColor(AppTheme.navy)
-                .lineLimit(1)
-            Spacer()
-            Label(status, systemImage: "sparkles")
-                .font(.caption.bold())
-                .foregroundColor(AppTheme.blue)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(.white.opacity(0.86))
-        .clipShape(Capsule())
-        .overlay(Capsule().stroke(AppTheme.cardStroke.opacity(0.9), lineWidth: 1))
-        .premiumShadow(.black, opacity: 0.05, radius: 16, y: 8)
-    }
-}
-
-struct MedicineHeroResultCard: View {
-    let name: String
-    let active: String?
-    let form: String?
-    let packageInfo: String?
-
-    var body: some View {
-        ZStack {
-            AppTheme.deepBlue
-            HStack(spacing: 18) {
-                MedicineBoxIllustration(name: name, form: form ?? "Film Tablet")
-                    .frame(width: 205, height: 160)
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(name)
-                        .font(.system(size: 31, weight: .black, design: .rounded))
-                        .foregroundColor(.white)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.65)
-                    Label("AI ile algılandı", systemImage: "sparkles")
-                        .font(.caption.bold())
-                        .foregroundColor(AppTheme.mint)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(AppTheme.mint.opacity(0.18))
-                        .clipShape(Capsule())
-                    if let active = active?.nilIfEmpty {
-                        Text("Etkin madde: \(active)")
-                            .font(.callout.weight(.semibold))
-                            .foregroundColor(.white.opacity(0.88))
-                    }
-                    if let packageInfo = packageInfo?.nilIfEmpty {
-                        Text("Kutu içeriği: \(packageInfo)")
-                            .font(.callout.weight(.semibold))
-                            .foregroundColor(.white.opacity(0.88))
-                    }
-                }
-                Spacer(minLength: 0)
-            }
-            .padding(20)
-        }
-        .frame(maxWidth: .infinity, minHeight: 215)
-        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 30).stroke(.white.opacity(0.28), lineWidth: 1))
-        .premiumShadow(AppTheme.blue, opacity: 0.20, radius: 26, y: 15)
-    }
-}
-
-struct LabelProductHeroCard: View {
-    let product: LabelProductInfo?
-    let fallbackTitle: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Etiket Karşılaştır")
-                .font(.system(size: 32, weight: .black, design: .rounded))
-                .foregroundColor(AppTheme.navy)
-                .frame(maxWidth: .infinity, alignment: .center)
-            Text("AI ile ürün bilgisi ve fiyat karşılaştırma")
-                .font(.callout.weight(.semibold))
-                .foregroundColor(AppTheme.muted)
-                .frame(maxWidth: .infinity, alignment: .center)
-
-            HStack(spacing: 18) {
-                HeadphoneIllustration()
-                    .frame(width: 185, height: 185)
-                    .background(Color(red: 0.96, green: 0.98, blue: 1.0))
-                    .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-                Divider()
-                VStack(alignment: .leading, spacing: 12) {
-                    Label("AI ile algılandı", systemImage: "sparkles")
-                        .font(.caption.bold())
-                        .foregroundColor(AppTheme.blue)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 7)
-                        .background(AppTheme.blue.opacity(0.10))
-                        .clipShape(Capsule())
-                    InfoLine(label: "Marka", value: product?.brand?.nilIfEmpty ?? "-", big: true)
-                    InfoLine(label: "Model", value: product?.model?.nilIfEmpty ?? fallbackTitle, big: true)
-                    InfoLine(label: "Açıklama", value: product?.description?.nilIfEmpty ?? product?.productName?.nilIfEmpty ?? "Ürün bilgisi", big: false)
-                }
-                Spacer(minLength: 0)
-            }
-        }
-        .padding(20)
-        .background(.white.opacity(0.86))
-        .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 32).stroke(AppTheme.cardStroke.opacity(0.85), lineWidth: 1))
-        .premiumShadow(.black, opacity: 0.07, radius: 24, y: 14)
-    }
-}
-
-struct InfoLine: View {
-    let label: String
-    let value: String
-    let big: Bool
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(label + ":")
-                .font(.caption.weight(.bold))
-                .foregroundColor(AppTheme.muted)
-            Text(value)
-                .font(.system(size: big ? 19 : 15, weight: .black, design: .rounded))
-                .foregroundColor(AppTheme.navy)
-                .lineLimit(big ? 1 : 2)
-                .minimumScaleFactor(0.75)
-        }
-    }
-}
-
-struct PriceListCard: View {
-    let title: String
-    let offers: [ProductOffer]
-    let rowButtonTitle: String?
-    let accent: Color
-    var highlightBest = false
-    let onTap: (ProductOffer) -> Void
-
-    var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Image(systemName: "tag.fill")
-                    .font(.headline.bold())
-                    .foregroundColor(.white)
-                    .frame(width: 44, height: 44)
-                    .background(Circle().fill(AppTheme.blue))
-                Text(title)
-                    .font(.system(size: 24, weight: .black, design: .rounded))
-                    .foregroundColor(highlightBest ? .white : AppTheme.navy)
-                Spacer()
-                if !offers.isEmpty {
-                    Text("\(offers.count) sonuç")
-                        .font(.caption.bold())
-                        .foregroundColor(highlightBest ? .white.opacity(0.75) : AppTheme.muted)
-                }
-            }
-            .padding(.horizontal, 18)
-            .padding(.top, 18)
-            .padding(.bottom, 14)
-            .background(highlightBest ? AnyShapeStyle(AppTheme.deepBlue) : AnyShapeStyle(Color.clear))
-
-            if offers.isEmpty {
-                Text("Sonuç bulunamadı. Daha net marka/model, doz veya barkod bilgisiyle tekrar deneyin.")
-                    .font(.callout.weight(.semibold))
-                    .foregroundColor(AppTheme.muted)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(18)
-            } else {
-                VStack(spacing: 0) {
-                    ForEach(Array(offers.enumerated()), id: \.element.id) { index, offer in
-                        PriceRow(
-                            rank: index + 1,
-                            offer: offer,
-                            isBest: index == 0 && highlightBest,
-                            buttonTitle: rowButtonTitle,
-                            action: { onTap(offer) }
-                        )
-                        if index < offers.count - 1 { Divider().padding(.leading, 74) }
-                    }
-                }
-                .padding(.horizontal, 14)
-                .padding(.bottom, 14)
-            }
-
-            if !offers.isEmpty {
-                HStack(spacing: 8) {
-                    Image(systemName: "shield.checkerboard")
-                        .foregroundColor(AppTheme.muted)
-                    Text("Fiyatlar bilgilendirme amaçlıdır. Değişiklik gösterebilir.")
-                        .font(.caption.weight(.medium))
-                        .foregroundColor(AppTheme.muted)
-                    Spacer()
-                }
-                .padding(.horizontal, 18)
-                .padding(.bottom, 16)
-            }
-        }
-        .background(.white.opacity(0.90))
-        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 30).stroke(AppTheme.cardStroke.opacity(0.82), lineWidth: 1))
-        .premiumShadow(.black, opacity: 0.06, radius: 22, y: 12)
-    }
-}
-
-struct PriceRow: View {
-    let rank: Int
-    let offer: ProductOffer
-    let isBest: Bool
-    let buttonTitle: String?
+    let visual: FeatureVisualType
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 13) {
-                Text("\(rank)")
-                    .font(.headline.bold())
-                    .foregroundColor(isBest ? .white : AppTheme.navy)
-                    .frame(width: 40, height: 40)
-                    .background(Circle().fill(isBest ? AppTheme.emerald : Color(red: 0.91, green: 0.95, blue: 1.0)))
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(offer.siteName)
-                        .font(.system(size: 18, weight: .black, design: .rounded))
-                        .foregroundColor(AppTheme.navy)
-                        .lineLimit(1)
-                    Text(offer.note?.nilIfEmpty ?? offer.title)
-                        .font(.caption.weight(.semibold))
-                        .foregroundColor(AppTheme.muted)
-                        .lineLimit(1)
+            ZStack {
+                gradient
+                HStack(spacing: 10) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        CircleIcon(systemName: icon, color: accent, size: 46, foreground: .white)
+                        Spacer(minLength: 2)
+                        Text(title)
+                            .font(.system(size: 26, weight: .black, design: .rounded))
+                            .foregroundColor(.white)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
+                        Text(subtitle)
+                            .font(.system(size: 13.5, weight: .semibold))
+                            .foregroundColor(.white.opacity(0.82))
+                            .lineLimit(2)
+                        CircleArrow(size: 42)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Group {
+                        switch visual {
+                        case .keyboard: KeyboardArt()
+                        case .medicineScan: MedicineScanArt()
+                        case .tagScan: BarcodeTagArt()
+                        }
+                    }
+                    .frame(width: 122, height: 118)
                 }
-                Spacer()
-                if isBest {
-                    Text("En Uygun")
-                        .font(.caption.bold())
-                        .foregroundColor(AppTheme.emerald)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(AppTheme.emerald.opacity(0.12))
-                        .clipShape(Capsule())
-                }
-                Text(offer.priceText.nilIfEmpty ?? "Link")
-                    .font(.system(size: 18, weight: .black, design: .rounded))
-                    .foregroundColor(isBest ? AppTheme.emerald : AppTheme.navy)
-                    .lineLimit(1)
-                if let buttonTitle {
-                    Text(buttonTitle)
-                        .font(.caption.bold())
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 9)
-                        .background(AppTheme.blue)
-                        .clipShape(Capsule())
-                } else {
-                    Image(systemName: "chevron.right")
-                        .font(.headline.bold())
-                        .foregroundColor(AppTheme.muted)
-                }
+                .padding(15)
             }
-            .padding(.vertical, 13)
-            .padding(.horizontal, 12)
-            .background(isBest ? AppTheme.emerald.opacity(0.07) : .clear)
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .frame(maxWidth: .infinity, minHeight: 160, maxHeight: 166)
+            .clipShape(RoundedRectangle(cornerRadius: 25, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 25).stroke(.white.opacity(0.26), lineWidth: 1))
+            .softShadow(accent, opacity: 0.17, radius: 17, y: 10)
         }
         .buttonStyle(.plain)
     }
 }
 
-struct BestPriceSummary: View {
+struct InfoPanel: View {
+    let icon: String
+    let title: String
+    let text: String
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 22, weight: .black))
+                .foregroundColor(ERTheme.blue)
+                .frame(width: 48, height: 48)
+                .background(ERTheme.blue.opacity(0.10))
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.system(size: 17, weight: .black, design: .rounded))
+                    .foregroundColor(ERTheme.navy)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                Text(text)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(ERTheme.muted)
+                    .lineLimit(3)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(14)
+        .background(.white.opacity(0.88))
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 20).stroke(ERTheme.lightStroke.opacity(0.7), lineWidth: 1))
+        .softShadow(.black, opacity: 0.05, radius: 12, y: 7)
+    }
+}
+
+// MARK: - Result Components
+
+struct ResultChip: View {
+    let text: String
+    let status: String
+
+    var body: some View {
+        HStack(spacing: 10) {
+            CircleIcon(systemName: "tag.fill", color: ERTheme.blue, size: 38, foreground: .white)
+            Text(text)
+                .font(.system(size: 16, weight: .black, design: .rounded))
+                .foregroundColor(ERTheme.navy)
+                .lineLimit(1)
+            Spacer()
+            Label(status, systemImage: "sparkles")
+                .font(.caption.bold())
+                .foregroundColor(ERTheme.blue)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(.white.opacity(0.88))
+        .clipShape(Capsule())
+        .overlay(Capsule().stroke(ERTheme.lightStroke.opacity(0.8), lineWidth: 1))
+    }
+}
+
+struct MedicineSummaryCard: View {
+    let name: String
+    let info: MedicineInfo?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                MedicineBoxArt(name: name)
+                    .frame(width: 112, height: 96)
+                VStack(alignment: .leading, spacing: 7) {
+                    Text(name)
+                        .font(.system(size: 22, weight: .black, design: .rounded))
+                        .foregroundColor(.white)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.68)
+                    Label("AI ile algılandı", systemImage: "sparkles")
+                        .font(.caption.bold())
+                        .foregroundColor(ERTheme.cyan)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
+                        .background(ERTheme.cyan.opacity(0.13))
+                        .clipShape(Capsule())
+                    Text("Etkin madde: \(info?.activeIngredient.clean ?? "Belirtilmedi")")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(.white.opacity(0.86))
+                        .lineLimit(1)
+                    Text("Kutu: \(info?.packageInfo.clean ?? info?.form.clean ?? "Belirtilmedi")")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(.white.opacity(0.86))
+                        .lineLimit(1)
+                }
+            }
+        }
+        .padding(14)
+        .background(ERTheme.blueGradient)
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 24).stroke(.white.opacity(0.22), lineWidth: 1))
+    }
+}
+
+struct LabelSummaryCard: View {
+    let product: LabelProductInfo?
+    let fallback: String
+
+    var body: some View {
+        VStack(spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
+                ProductImageArt()
+                    .frame(width: 112, height: 96)
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("AI ile algılandı", systemImage: "sparkles")
+                        .font(.caption.bold())
+                        .foregroundColor(ERTheme.blue)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
+                        .background(ERTheme.blue.opacity(0.09))
+                        .clipShape(Capsule())
+                    FieldLine(label: "Marka", value: product?.brand.clean ?? "-")
+                    FieldLine(label: "Model", value: product?.model.clean ?? product?.productName.clean ?? fallback)
+                    FieldLine(label: "Açıklama", value: product?.description.clean ?? "Ürün fiyat karşılaştırması")
+                }
+            }
+        }
+        .padding(14)
+        .background(.white.opacity(0.90))
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 24).stroke(ERTheme.lightStroke.opacity(0.75), lineWidth: 1))
+        .softShadow()
+    }
+}
+
+struct FieldLine: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(ERTheme.muted)
+            Text(value)
+                .font(.system(size: 15, weight: .black, design: .rounded))
+                .foregroundColor(ERTheme.navy)
+                .lineLimit(2)
+                .minimumScaleFactor(0.75)
+        }
+    }
+}
+
+struct OfferListCard: View {
+    let title: String
+    let offers: [ProductOffer]
+    let buttonTitle: String?
+    let accent: Color
+    var highlightBest: Bool = false
+    let onTap: (ProductOffer) -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Label(title, systemImage: "tag.fill")
+                    .font(.system(size: 19, weight: .black, design: .rounded))
+                    .foregroundColor(ERTheme.navy)
+                Spacer()
+                Image(systemName: "info.circle")
+                    .foregroundColor(ERTheme.muted)
+            }
+            .padding(.horizontal, 14)
+            .padding(.top, 14)
+            .padding(.bottom, 8)
+
+            if offers.isEmpty {
+                Text("Sonuç bulunamadı. Farklı bir arama deneyin.")
+                    .font(.callout.weight(.semibold))
+                    .foregroundColor(ERTheme.muted)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(14)
+            } else {
+                ForEach(Array(offers.enumerated()), id: \.element.id) { index, offer in
+                    OfferRow(
+                        offer: offer,
+                        rank: index + 1,
+                        isBest: highlightBest && index == 0,
+                        buttonTitle: buttonTitle,
+                        accent: accent,
+                        action: { onTap(offer) }
+                    )
+                    if offer.id != offers.last?.id { Divider().padding(.leading, 48) }
+                }
+            }
+        }
+        .background(.white.opacity(0.92))
+        .clipShape(RoundedRectangle(cornerRadius: 23, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 23).stroke(ERTheme.lightStroke.opacity(0.70), lineWidth: 1))
+        .softShadow()
+    }
+}
+
+struct OfferRow: View {
+    let offer: ProductOffer
+    let rank: Int
+    let isBest: Bool
+    let buttonTitle: String?
+    let accent: Color
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 9) {
+                Text("\(rank)")
+                    .font(.caption.bold())
+                    .foregroundColor(isBest ? .white : ERTheme.muted)
+                    .frame(width: 28, height: 28)
+                    .background(Circle().fill(isBest ? ERTheme.emerald : Color(red: 0.92, green: 0.96, blue: 1.0)))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(offer.siteName)
+                        .font(.system(size: 15.5, weight: .black, design: .rounded))
+                        .foregroundColor(ERTheme.navy)
+                        .lineLimit(1)
+                    Text(offer.note.clean ?? offer.title)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundColor(ERTheme.muted)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 4)
+                if isBest {
+                    Text("En Uygun")
+                        .font(.caption2.bold())
+                        .foregroundColor(ERTheme.emerald)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(ERTheme.emerald.opacity(0.10))
+                        .clipShape(Capsule())
+                }
+                Text(offer.priceText.cleanOrNil ?? "Fiyat sayfada")
+                    .font(.system(size: 15.5, weight: .black, design: .rounded))
+                    .foregroundColor(isBest ? ERTheme.emerald : ERTheme.navy)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                if let buttonTitle {
+                    Text(buttonTitle)
+                        .font(.caption.bold())
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 7)
+                        .background(accent)
+                        .clipShape(Capsule())
+                } else {
+                    Image(systemName: "chevron.right")
+                        .font(.caption.bold())
+                        .foregroundColor(ERTheme.muted)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(isBest ? ERTheme.emerald.opacity(0.07) : Color.clear)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct BestPriceCard: View {
     let offer: ProductOffer
     let action: () -> Void
 
     var body: some View {
-        HStack(spacing: 16) {
-            Image(systemName: "tag.fill")
-                .font(.title2.bold())
-                .foregroundColor(.white)
-                .frame(width: 58, height: 58)
-                .background(Circle().fill(AppTheme.emerald.opacity(0.85)))
-            VStack(alignment: .leading, spacing: 5) {
+        HStack(spacing: 12) {
+            CircleIcon(systemName: "tag.fill", color: ERTheme.emerald, size: 48, foreground: .white)
+            VStack(alignment: .leading, spacing: 2) {
                 Text("En Uygun Fiyat")
-                    .font(.caption.bold())
-                    .foregroundColor(AppTheme.emerald)
-                Text(offer.priceText.nilIfEmpty ?? offer.siteName)
-                    .font(.system(size: 30, weight: .black, design: .rounded))
-                    .foregroundColor(AppTheme.emerald)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(ERTheme.muted)
+                Text(offer.priceText.cleanOrNil ?? "Fiyat sayfada")
+                    .font(.system(size: 24, weight: .black, design: .rounded))
+                    .foregroundColor(ERTheme.emerald)
             }
             Spacer()
             Button(action: action) {
-                Label("Siteye Git", systemImage: "arrow.up.right.square")
-                    .font(.headline.bold())
+                Label("Siteye Git", systemImage: "arrow.up.right")
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 14)
-                    .background(AppTheme.emerald)
-                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(ERTheme.emerald)
+                    .clipShape(Capsule())
             }
         }
-        .padding(18)
-        .background(AppTheme.emerald.opacity(0.10))
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 28).stroke(AppTheme.emerald.opacity(0.32), lineWidth: 1))
+        .padding(14)
+        .background(ERTheme.emerald.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 22).stroke(ERTheme.emerald.opacity(0.22), lineWidth: 1))
     }
 }
 
-struct ExpandInfoCard: View {
+struct ExpandableTextCard: View {
     let title: String
     let icon: String
     let items: [String]
     var linkText: String? = nil
 
+    private var shownItems: [String] {
+        let cleaned = items.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        return cleaned.isEmpty ? ["Bilgi bulunamadı. Kaynakları kontrol edin."] : Array(cleaned.prefix(4))
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Image(systemName: icon)
-                    .font(.headline.bold())
-                    .foregroundColor(.white)
-                    .frame(width: 44, height: 44)
-                    .background(Circle().fill(AppTheme.blue))
-                Text(title)
-                    .font(.system(size: 23, weight: .black, design: .rounded))
-                    .foregroundColor(AppTheme.navy)
+                Label(title, systemImage: icon)
+                    .font(.system(size: 18, weight: .black, design: .rounded))
+                    .foregroundColor(ERTheme.navy)
                 Spacer()
                 Image(systemName: "chevron.down")
-                    .font(.headline.bold())
-                    .foregroundColor(AppTheme.navy)
+                    .font(.caption.bold())
+                    .foregroundColor(ERTheme.navy)
             }
-            if items.isEmpty {
-                Text("Güvenilir kaynaklardan yeterli bilgi alınamadı.")
-                    .font(.callout.weight(.semibold))
-                    .foregroundColor(AppTheme.muted)
-            } else {
-                ForEach(items.prefix(5), id: \.self) { item in
-                    HStack(alignment: .top, spacing: 10) {
-                        Circle().fill(AppTheme.blue).frame(width: 6, height: 6).padding(.top, 7)
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(shownItems, id: \.self) { item in
+                    HStack(alignment: .top, spacing: 7) {
+                        Circle().fill(ERTheme.blue).frame(width: 5, height: 5).padding(.top, 6)
                         Text(item)
-                            .font(.callout.weight(.medium))
-                            .foregroundColor(AppTheme.ink)
+                            .font(.system(size: 13.2, weight: .medium))
+                            .foregroundColor(ERTheme.ink)
+                            .lineLimit(3)
                     }
                 }
-            }
-            if let linkText {
-                HStack(spacing: 8) {
-                    Text(linkText)
-                    Image(systemName: "chevron.right")
+                if let linkText {
+                    Text(linkText + "  ›")
+                        .font(.system(size: 13.5, weight: .bold))
+                        .foregroundColor(ERTheme.blue)
+                        .padding(.top, 2)
                 }
-                .font(.callout.bold())
-                .foregroundColor(AppTheme.blue)
             }
         }
-        .padding(18)
-        .background(.white.opacity(0.88))
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 28).stroke(AppTheme.cardStroke.opacity(0.80), lineWidth: 1))
-        .premiumShadow(.black, opacity: 0.05, radius: 18, y: 10)
+        .padding(14)
+        .background(.white.opacity(0.90))
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 22).stroke(ERTheme.lightStroke.opacity(0.70), lineWidth: 1))
     }
 }
 
-struct MedicalDisclaimer: View {
+struct DisclaimerView: View {
     let text: String
 
     var body: some View {
-        VStack(spacing: 4) {
-            Label("Doktor tavsiyesi değildir.", systemImage: "shield.checkerboard")
-                .font(.footnote.bold())
-                .foregroundColor(AppTheme.muted)
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "shield.checkered")
+                .foregroundColor(ERTheme.muted)
             Text(text)
-                .font(.caption.weight(.medium))
-                .foregroundColor(AppTheme.muted)
-                .multilineTextAlignment(.center)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(ERTheme.muted)
+                .multilineTextAlignment(.leading)
+            Spacer()
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 6)
+        .padding(.horizontal, 8)
     }
 }
 
-struct SourcesCompact: View {
+struct SourcesView: View {
     let sources: [SourceLink]
 
     var body: some View {
         if !sources.isEmpty {
-            VStack(alignment: .leading, spacing: 10) {
-                Label("Kaynaklar", systemImage: "link")
-                    .font(.headline.bold())
-                    .foregroundColor(AppTheme.navy)
-                ForEach(sources.prefix(4)) { source in
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Kaynaklar")
+                    .font(.system(size: 16, weight: .black, design: .rounded))
+                    .foregroundColor(ERTheme.navy)
+                ForEach(sources.prefix(3)) { source in
                     Button { openURL(source.url) } label: {
-                        HStack(spacing: 8) {
+                        HStack {
                             Text(source.title)
-                                .font(.callout.weight(.semibold))
-                                .foregroundColor(AppTheme.blue)
+                                .font(.caption.weight(.semibold))
+                                .foregroundColor(ERTheme.blue)
                                 .lineLimit(1)
                             Spacer()
-                            Image(systemName: "arrow.up.right.square")
-                                .foregroundColor(AppTheme.blue)
+                            Image(systemName: "arrow.up.right")
+                                .font(.caption.bold())
+                                .foregroundColor(ERTheme.blue)
                         }
                     }
                     .buttonStyle(.plain)
                 }
             }
-            .padding(16)
-            .background(.white.opacity(0.84))
-            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 24).stroke(AppTheme.cardStroke.opacity(0.75), lineWidth: 1))
+            .padding(14)
+            .background(.white.opacity(0.78))
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         }
     }
 }
 
-// MARK: - Sheets / Utility UI
+// MARK: - Purchase Components
+
+struct PurchaseProductCard: View {
+    let productName: String
+    let subtitle: String
+    let kind: PurchaseKind
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(Color(red: 0.94, green: 0.97, blue: 1.0))
+                if kind == .medicine {
+                    MedicineBoxArt(name: productName)
+                        .padding(10)
+                } else {
+                    BarcodeTagArt()
+                        .padding(10)
+                }
+            }
+            .frame(width: 96, height: 96)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(productName)
+                    .font(.system(size: 22, weight: .black, design: .rounded))
+                    .foregroundColor(ERTheme.navy)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.65)
+                Text(subtitle)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(ERTheme.muted)
+                    .lineLimit(3)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(14)
+        .background(.white.opacity(0.94))
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 24).stroke(ERTheme.lightStroke.opacity(0.8), lineWidth: 1))
+        .softShadow()
+    }
+}
+
+struct PurchaseRow: View {
+    let offer: ProductOffer
+    let selected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Text(String(offer.siteName.prefix(1)).uppercased())
+                    .font(.system(size: 18, weight: .black, design: .rounded))
+                    .foregroundColor(selected ? ERTheme.blue : ERTheme.emerald)
+                    .frame(width: 42, height: 42)
+                    .background((selected ? ERTheme.blue : ERTheme.emerald).opacity(0.10))
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(offer.siteName)
+                        .font(.system(size: 15.5, weight: .black, design: .rounded))
+                        .foregroundColor(ERTheme.navy)
+                        .lineLimit(1)
+                    Text(offer.note.clean ?? offer.title)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundColor(ERTheme.muted)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 4)
+                Text(offer.priceText.cleanOrNil ?? "Fiyat sayfada")
+                    .font(.system(size: 15.5, weight: .black, design: .rounded))
+                    .foregroundColor(ERTheme.blue)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                Image(systemName: "arrow.up.right.square")
+                    .font(.headline.weight(.bold))
+                    .foregroundColor(ERTheme.muted)
+            }
+            .padding(.vertical, 9)
+            .padding(.horizontal, 8)
+            .background(selected ? ERTheme.blue.opacity(0.07) : .clear)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Sheets / Image Picker
 
 struct ManualSearchSheet: View {
     let title: String
     let placeholder: String
-    let onSearch: (String) -> Void
+    let onSubmit: (String) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var text = ""
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(title)
-                        .font(.system(size: 25, weight: .black, design: .rounded))
-                        .foregroundColor(AppTheme.navy)
-                    Text("Tek satır yaz, sonuçları hemen ara.")
-                        .font(.callout.weight(.semibold))
-                        .foregroundColor(AppTheme.muted)
-                }
-                Spacer()
-                Button("Kapat") { dismiss() }
-                    .font(.headline.bold())
-            }
+        VStack(spacing: 16) {
+            Capsule().fill(Color.gray.opacity(0.25)).frame(width: 42, height: 5).padding(.top, 8)
+            Text(title)
+                .font(.system(size: 24, weight: .black, design: .rounded))
+                .foregroundColor(ERTheme.navy)
+            TextField(placeholder, text: $text)
+                .textInputAutocapitalization(.never)
+                .font(.system(size: 16, weight: .semibold))
+                .padding(14)
+                .background(Color(red: 0.94, green: 0.97, blue: 1.0))
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             HStack(spacing: 10) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(AppTheme.muted)
-                TextField(placeholder, text: $text)
-                    .textInputAutocapitalization(.words)
-                    .autocorrectionDisabled()
-            }
-            .padding(17)
-            .background(Color(red: 0.94, green: 0.97, blue: 1.0))
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 18).stroke(AppTheme.cardStroke.opacity(0.90), lineWidth: 1))
-
-            Button { onSearch(text) } label: {
-                Text("Ara")
-                    .font(.headline.bold())
+                Button("Kapat") { dismiss() }
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .foregroundColor(ERTheme.blue)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(ERTheme.blue.opacity(0.18), lineWidth: 1))
+                Button("Ara") { onSubmit(text) }
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
-                    .padding(17)
-                    .background(AppTheme.blue)
-                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .padding(.vertical, 14)
+                    .background(ERTheme.blue)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
             Spacer()
         }
-        .padding(24)
-        .background(AppTheme.screenBackground)
+        .padding(.horizontal, 18)
+        .background(ERTheme.background)
     }
 }
 
-struct PremiumLoadingOverlay: View {
-    let message: String
+struct ImagePicker: UIViewControllerRepresentable {
+    let onImage: (UIImage) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = UIImagePickerController.isSourceTypeAvailable(.camera) ? .camera : .photoLibrary
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    final class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
+        let parent: ImagePicker
+        init(_ parent: ImagePicker) { self.parent = parent }
+
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+            if let image = info[.originalImage] as? UIImage { parent.onImage(image) }
+            parent.dismiss()
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) { parent.dismiss() }
+    }
+}
+
+// MARK: - Utility Views / Illustrations
+
+struct CircleIcon: View {
+    let systemName: String
+    let color: Color
+    var size: CGFloat = 46
+    var foreground: Color = .white
+
+    var body: some View {
+        Image(systemName: systemName)
+            .font(.system(size: size * 0.42, weight: .black))
+            .foregroundColor(foreground)
+            .frame(width: size, height: size)
+            .background(Circle().fill(color.opacity(0.92)))
+            .overlay(Circle().stroke(.white.opacity(0.22), lineWidth: 1))
+    }
+}
+
+struct CircleArrow: View {
+    var size: CGFloat = 44
+
+    var body: some View {
+        Image(systemName: "arrow.right")
+            .font(.system(size: size * 0.42, weight: .bold))
+            .foregroundColor(.white)
+            .frame(width: size, height: size)
+            .background(Circle().stroke(.white.opacity(0.38), lineWidth: 1.6))
+    }
+}
+
+struct RadarLogo: View {
     var body: some View {
         ZStack {
-            Color.black.opacity(0.20).ignoresSafeArea()
-            VStack(spacing: 16) {
-                ProgressView()
-                    .scaleEffect(1.35)
-                Text(message)
-                    .font(.headline.bold())
-                    .foregroundColor(AppTheme.navy)
+            ForEach(0..<3) { i in
+                Circle()
+                    .trim(from: 0.08, to: 0.84)
+                    .stroke(LinearGradient(colors: [ERTheme.blue, ERTheme.cyan], startPoint: .leading, endPoint: .trailing), style: StrokeStyle(lineWidth: CGFloat(5 - i), lineCap: .round))
+                    .frame(width: CGFloat(62 - i * 16), height: CGFloat(62 - i * 16))
+                    .rotationEffect(.degrees(Double(i) * 13 - 18))
             }
-            .padding(26)
+            Circle().fill(ERTheme.blue).frame(width: 8, height: 8)
+            Capsule()
+                .fill(LinearGradient(colors: [ERTheme.cyan, ERTheme.blue], startPoint: .leading, endPoint: .trailing))
+                .frame(width: 42, height: 8)
+                .rotationEffect(.degrees(-42))
+                .offset(x: 12, y: -12)
+            RoundedRectangle(cornerRadius: 5, style: .continuous)
+                .fill(ERTheme.navy)
+                .frame(width: 25, height: 25)
+                .rotationEffect(.degrees(39))
+                .offset(x: 22, y: 18)
+                .overlay(Circle().fill(.white).frame(width: 5, height: 5).offset(x: 22, y: 10))
+        }
+    }
+}
+
+struct BarcodeTagArt: View {
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(LinearGradient(colors: [.white, Color(red: 0.91, green: 0.96, blue: 1.0)], startPoint: .top, endPoint: .bottom))
+                .frame(width: 96, height: 118)
+                .rotationEffect(.degrees(-12))
+                .softShadow(.black, opacity: 0.18, radius: 12, y: 8)
+            Circle().stroke(ERTheme.navy.opacity(0.26), lineWidth: 3).frame(width: 14, height: 14).offset(x: 28, y: -42)
+            HStack(spacing: 3) {
+                ForEach(0..<12) { i in
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(ERTheme.navy.opacity(0.86))
+                        .frame(width: i % 3 == 0 ? 4 : 2, height: CGFloat(48 + (i % 4) * 8))
+                }
+            }
+            .rotationEffect(.degrees(-12))
+            .offset(y: 16)
+        }
+    }
+}
+
+struct CapsuleArt: View {
+    var body: some View {
+        ZStack {
+            Capsule()
+                .fill(LinearGradient(colors: [ERTheme.emerald, Color(red: 0.83, green: 1.0, blue: 0.96)], startPoint: .top, endPoint: .bottom))
+                .frame(width: 54, height: 114)
+                .rotationEffect(.degrees(38))
+                .softShadow(ERTheme.emerald, opacity: 0.22, radius: 12, y: 7)
+            Capsule()
+                .fill(.white.opacity(0.92))
+                .frame(width: 54, height: 58)
+                .rotationEffect(.degrees(38))
+                .offset(x: -22, y: 22)
+            Circle()
+                .fill(.white.opacity(0.92))
+                .frame(width: 64, height: 64)
+                .overlay(Rectangle().fill(ERTheme.muted.opacity(0.18)).frame(width: 48, height: 2).rotationEffect(.degrees(18)))
+                .offset(x: 36, y: 38)
+        }
+    }
+}
+
+struct KeyboardArt: View {
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(.white.opacity(0.22))
+                .frame(width: 118, height: 48)
+                .offset(y: -36)
+            Text("İlaç adı...")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(.white.opacity(0.8))
+                .offset(x: -8, y: -36)
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(.white)
+                .offset(x: 42, y: -36)
+            VStack(spacing: 4) {
+                ForEach(0..<3) { _ in
+                    HStack(spacing: 4) {
+                        ForEach(0..<5) { _ in
+                            RoundedRectangle(cornerRadius: 4).fill(.white.opacity(0.72)).frame(width: 17, height: 13)
+                        }
+                    }
+                }
+                RoundedRectangle(cornerRadius: 4).fill(.white.opacity(0.82)).frame(width: 76, height: 15)
+            }
+            .rotationEffect(.degrees(-8))
+            .offset(y: 30)
+        }
+    }
+}
+
+struct MedicineScanArt: View {
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(.white.opacity(0.94))
+                .frame(width: 104, height: 70)
+                .softShadow(.black, opacity: 0.16, radius: 10, y: 7)
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Paracetamol")
+                    .font(.system(size: 13, weight: .black, design: .rounded))
+                    .foregroundColor(ERTheme.navy)
+                Text("500 mg Tablet")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundColor(ERTheme.emerald)
+                Spacer()
+                Text("20 Tablet")
+                    .font(.system(size: 8, weight: .medium))
+                    .foregroundColor(ERTheme.muted)
+            }
+            .frame(width: 82, height: 48, alignment: .leading)
+            ForEach(0..<4) { index in
+                RoundedRectangle(cornerRadius: 3)
+                    .stroke(ERTheme.cyan, lineWidth: 2)
+                    .frame(width: 22, height: 22)
+                    .position(
+                        x: CGFloat(index % 2 == 0 ? 7 : 115),
+                        y: CGFloat(index < 2 ? 17 : 101)
+                    )
+            }
+        }
+    }
+}
+
+struct MedicineBoxArt: View {
+    let name: String
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(LinearGradient(colors: [.white, Color(red: 0.93, green: 0.97, blue: 1.0)], startPoint: .top, endPoint: .bottom))
+                .softShadow(.black, opacity: 0.18, radius: 10, y: 7)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(name.prefix(18).uppercased())
+                    .font(.system(size: 13, weight: .black, design: .rounded))
+                    .foregroundColor(ERTheme.blue)
+                    .lineLimit(2)
+                Text("Film Tablet")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundColor(ERTheme.navy)
+                Spacer()
+                Text("20 Tablet")
+                    .font(.system(size: 8, weight: .medium))
+                    .foregroundColor(ERTheme.muted)
+            }
+            .padding(10)
+            Path { path in
+                path.move(to: CGPoint(x: 0, y: 75))
+                path.addCurve(to: CGPoint(x: 130, y: 45), control1: CGPoint(x: 42, y: 100), control2: CGPoint(x: 90, y: 25))
+                path.addLine(to: CGPoint(x: 130, y: 110))
+                path.addLine(to: CGPoint(x: 0, y: 110))
+                path.closeSubpath()
+            }
+            .fill(ERTheme.blue.opacity(0.18))
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+}
+
+struct ProductImageArt: View {
+    var body: some View {
+        ZStack {
+            Circle().stroke(Color.black.opacity(0.90), lineWidth: 10).frame(width: 70, height: 78).offset(y: 10)
+            Circle().fill(Color.black.opacity(0.93)).frame(width: 50, height: 50).offset(x: -31, y: 35)
+            Circle().fill(Color.black.opacity(0.93)).frame(width: 50, height: 50).offset(x: 31, y: 35)
+            RoundedRectangle(cornerRadius: 8).fill(Color.black.opacity(0.96)).frame(width: 24, height: 64).offset(x: -47, y: 28)
+            RoundedRectangle(cornerRadius: 8).fill(Color.black.opacity(0.96)).frame(width: 24, height: 64).offset(x: 47, y: 28)
+        }
+    }
+}
+
+// MARK: - Misc
+
+struct LoadingOverlay: View {
+    let message: String
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.18).ignoresSafeArea()
+            VStack(spacing: 12) {
+                ProgressView().tint(ERTheme.blue)
+                Text(message)
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundColor(ERTheme.navy)
+            }
+            .padding(20)
             .background(.white.opacity(0.94))
-            .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-            .premiumShadow(.black, opacity: 0.15, radius: 24, y: 12)
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .softShadow()
         }
     }
 }
@@ -1740,365 +1735,60 @@ struct SettingsView: View {
     @Binding var appApiKey: String
 
     var body: some View {
-        PremiumScreen {
-            Form {
-                Section("Backend") {
+        AppScaffold {
+            VStack(spacing: 14) {
+                PageHeader(title: "Ayarlar", subtitle: nil, showBack: false)
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Backend")
+                        .font(.headline.weight(.black))
+                        .foregroundColor(ERTheme.navy)
                     TextField("Backend URL", text: $backendBaseURL)
                         .textInputAutocapitalization(.never)
                         .keyboardType(.URL)
+                        .padding(12)
+                        .background(Color(red: 0.94, green: 0.97, blue: 1.0))
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                     SecureField("Uygulama API anahtarı", text: $appApiKey)
+                        .padding(12)
+                        .background(Color(red: 0.94, green: 0.97, blue: 1.0))
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    Text("Tavily ve Gemini anahtarları iPhone içine yazılmaz; sadece Vercel Environment Variables içinde tutulur.")
+                        .font(.footnote.weight(.medium))
+                        .foregroundColor(ERTheme.muted)
                 }
-                Section("Ucuz altyapı") {
-                    Text("Tavily ve Gemini anahtarları iPhone içine yazılmaz. Bunlar sadece Vercel Environment Variables içinde tutulur.")
-                    Text("Uygulama OCR işlemini cihazda yapar; backend Tavily ile web araması yapar, Gemini Flash-Lite ile özetler.")
-                }
-                Section("İlaç uyarısı") {
-                    Text("Bu uygulamadaki ilaç bilgileri doktor/eczacı tavsiyesi değildir. Prospektüs ve resmi kaynaklar kontrol edilmelidir.")
-                }
+                .padding(16)
+                .background(.white.opacity(0.90))
+                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                Spacer(minLength: 90)
             }
-            .scrollContentBackground(.hidden)
-            .navigationTitle("Ayarlar")
+            .padding(.horizontal, 16)
+            .padding(.top, 6)
+            .padding(.bottom, 104)
         }
     }
 }
 
 struct HistoryView: View {
     var body: some View {
-        PremiumScreen {
-            VStack(spacing: 20) {
-                RadarLogo()
-                    .frame(width: 120, height: 120)
-                Text("Geçmiş")
-                    .font(.system(size: 42, weight: .black, design: .rounded))
-                    .foregroundColor(AppTheme.navy)
+        AppScaffold {
+            VStack(spacing: 16) {
+                PageHeader(title: "Geçmiş", subtitle: nil, showBack: false)
+                RadarLogo().frame(width: 80, height: 80)
                 Text("Sonraki sürümde aramalar cihazda saklanacak. Şimdilik sonuçları linklerden tekrar açabilirsiniz.")
                     .font(.callout.weight(.semibold))
                     .multilineTextAlignment(.center)
-                    .foregroundColor(AppTheme.muted)
-                    .padding(.horizontal, 36)
-                Spacer(minLength: 160)
+                    .foregroundColor(ERTheme.muted)
+                    .padding(.horizontal, 16)
+                Spacer(minLength: 140)
             }
-            .frame(maxWidth: .infinity, minHeight: UIScreen.main.bounds.height - 170, alignment: .top)
-            .padding(.top, 60)
-            .padding(.horizontal, 22)
+            .padding(.horizontal, 16)
+            .padding(.top, 6)
+            .padding(.bottom, 104)
         }
     }
 }
 
-// MARK: - Visual Illustrations
-
-struct RadarLogo: View {
-    var body: some View {
-        ZStack {
-            ForEach(0..<3) { i in
-                Circle()
-                    .trim(from: 0.06, to: 0.85)
-                    .stroke(
-                        LinearGradient(colors: [AppTheme.blue, AppTheme.cyan], startPoint: .leading, endPoint: .trailing),
-                        style: StrokeStyle(lineWidth: CGFloat(7 - i), lineCap: .round)
-                    )
-                    .frame(width: CGFloat(96 - i * 24), height: CGFloat(96 - i * 24))
-                    .rotationEffect(.degrees(Double(i) * 12 - 18))
-            }
-            Circle().fill(AppTheme.blue).frame(width: 12, height: 12)
-            Capsule()
-                .fill(LinearGradient(colors: [AppTheme.cyan, AppTheme.blue], startPoint: .leading, endPoint: .trailing))
-                .frame(width: 62, height: 12)
-                .rotationEffect(.degrees(-40))
-                .offset(x: 19, y: -18)
-            RoundedRectangle(cornerRadius: 7, style: .continuous)
-                .fill(AppTheme.navy)
-                .frame(width: 38, height: 38)
-                .rotationEffect(.degrees(39))
-                .offset(x: 42, y: 18)
-                .overlay(Circle().fill(.white).frame(width: 7, height: 7).offset(x: 36, y: 8))
-        }
-    }
-}
-
-struct BarcodeTagIllustration: View {
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 7, style: .continuous)
-                .fill(.white)
-                .frame(width: 150, height: 190)
-                .rotationEffect(.degrees(14))
-                .shadow(color: .black.opacity(0.15), radius: 14, x: 0, y: 9)
-                .overlay(alignment: .top) {
-                    Circle()
-                        .stroke(AppTheme.navy.opacity(0.45), lineWidth: 4)
-                        .frame(width: 22, height: 22)
-                        .offset(y: 16)
-                        .rotationEffect(.degrees(14))
-                }
-            HStack(spacing: 4) {
-                ForEach(0..<11) { index in
-                    RoundedRectangle(cornerRadius: 1)
-                        .fill(AppTheme.navy)
-                        .frame(width: index % 3 == 0 ? 5 : 3, height: CGFloat(72 + (index % 4) * 10))
-                }
-            }
-            .rotationEffect(.degrees(14))
-            .offset(y: 26)
-            Text("868123 456789")
-                .font(.system(size: 10, weight: .bold, design: .monospaced))
-                .foregroundColor(AppTheme.navy.opacity(0.75))
-                .rotationEffect(.degrees(14))
-                .offset(y: 76)
-        }
-    }
-}
-
-struct CapsuleHeroIllustration: View {
-    var body: some View {
-        ZStack {
-            Image(systemName: "shield")
-                .font(.system(size: 96, weight: .thin))
-                .foregroundColor(.white.opacity(0.20))
-                .offset(x: -18, y: -34)
-            Capsule()
-                .fill(LinearGradient(colors: [.white, Color(red: 0.92, green: 0.98, blue: 0.97)], startPoint: .top, endPoint: .bottom))
-                .frame(width: 76, height: 150)
-                .rotationEffect(.degrees(47))
-                .offset(x: -4, y: 8)
-                .shadow(color: .black.opacity(0.16), radius: 12, x: 0, y: 8)
-            Capsule()
-                .trim(from: 0, to: 0.50)
-                .fill(LinearGradient(colors: [AppTheme.mint, AppTheme.emerald], startPoint: .topLeading, endPoint: .bottomTrailing))
-                .frame(width: 76, height: 150)
-                .rotationEffect(.degrees(47))
-                .offset(x: -4, y: 8)
-            Circle()
-                .fill(.white.opacity(0.92))
-                .frame(width: 88, height: 88)
-                .offset(x: 76, y: 48)
-                .shadow(color: .black.opacity(0.10), radius: 10, x: 0, y: 8)
-                .overlay(Rectangle().fill(AppTheme.muted.opacity(0.22)).frame(width: 72, height: 2).rotationEffect(.degrees(15)).offset(x: 76, y: 48))
-        }
-    }
-}
-
-struct KeyboardSearchIllustration: View {
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 17, style: .continuous)
-                .fill(.white.opacity(0.18))
-                .frame(width: 202, height: 58)
-                .rotationEffect(.degrees(-8))
-                .offset(x: 0, y: -54)
-                .overlay {
-                    HStack {
-                        Text("İlaç adı yazın...")
-                            .font(.caption.weight(.semibold))
-                            .foregroundColor(AppTheme.muted)
-                        Spacer()
-                        Image(systemName: "magnifyingglass")
-                            .font(.title3.bold())
-                            .foregroundColor(AppTheme.navy)
-                    }
-                    .padding(.horizontal, 18)
-                    .frame(width: 190, height: 48)
-                    .background(.white.opacity(0.92))
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .rotationEffect(.degrees(-8))
-                    .offset(x: 0, y: -54)
-                }
-            VStack(spacing: 7) {
-                ForEach(0..<3) { _ in
-                    HStack(spacing: 7) {
-                        ForEach(0..<6) { _ in
-                            RoundedRectangle(cornerRadius: 5)
-                                .fill(.white.opacity(0.78))
-                                .frame(width: 26, height: 20)
-                        }
-                    }
-                }
-                HStack(spacing: 7) {
-                    RoundedRectangle(cornerRadius: 6).fill(.white.opacity(0.82)).frame(width: 88, height: 22)
-                    Text("Ara")
-                        .font(.caption.bold())
-                        .foregroundColor(.white)
-                        .frame(width: 50, height: 22)
-                        .background(AppTheme.blue)
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                }
-            }
-            .padding(14)
-            .background(.white.opacity(0.18))
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .rotationEffect(.degrees(8))
-            .offset(x: 18, y: 42)
-        }
-    }
-}
-
-struct MedicineScanIllustration: View {
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(.white)
-                .frame(width: 138, height: 96)
-                .shadow(color: .black.opacity(0.18), radius: 12, x: 0, y: 8)
-                .overlay(alignment: .leading) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Paracetamol")
-                            .font(.system(size: 18, weight: .black, design: .rounded))
-                            .foregroundColor(AppTheme.navy)
-                        Text("500 mg Tablet")
-                            .font(.caption.bold())
-                            .foregroundColor(AppTheme.emerald)
-                        Spacer()
-                        Text("20 Tablet")
-                            .font(.caption2.bold())
-                            .foregroundColor(AppTheme.muted)
-                    }
-                    .padding(12)
-                }
-            ForEach(0..<4) { index in
-                CornerBracket()
-                    .stroke(AppTheme.mint, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                    .frame(width: 46, height: 46)
-                    .rotationEffect(.degrees(Double(index) * 90))
-                    .offset(x: index == 0 || index == 3 ? -86 : 86, y: index < 2 ? -66 : 66)
-            }
-            Circle()
-                .fill(.white.opacity(0.95))
-                .frame(width: 58, height: 58)
-                .overlay(Image(systemName: "camera.fill").foregroundColor(AppTheme.emerald).font(.title3.bold()))
-                .offset(x: 20, y: 83)
-        }
-    }
-}
-
-struct CornerBracket: Shape {
-    func path(in rect: CGRect) -> Path {
-        var p = Path()
-        p.move(to: CGPoint(x: rect.minX, y: rect.midY))
-        p.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
-        p.addLine(to: CGPoint(x: rect.midX, y: rect.minY))
-        return p
-    }
-}
-
-struct MedicineBoxIllustration: View {
-    let name: String
-    let form: String
-
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(.white)
-                .frame(width: 190, height: 120)
-                .shadow(color: .black.opacity(0.16), radius: 12, x: 0, y: 10)
-            Path { path in
-                path.move(to: CGPoint(x: 10, y: 92))
-                path.addCurve(to: CGPoint(x: 185, y: 63), control1: CGPoint(x: 65, y: 110), control2: CGPoint(x: 118, y: 34))
-                path.addLine(to: CGPoint(x: 185, y: 120))
-                path.addLine(to: CGPoint(x: 10, y: 120))
-            }
-            .fill(LinearGradient(colors: [AppTheme.blue.opacity(0.85), AppTheme.navy], startPoint: .topLeading, endPoint: .bottomTrailing))
-            .frame(width: 190, height: 120)
-            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-            VStack(alignment: .leading, spacing: 3) {
-                Text(name.uppercased())
-                    .font(.system(size: 22, weight: .black, design: .rounded))
-                    .foregroundColor(AppTheme.navy)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.5)
-                Text(form)
-                    .font(.caption.bold())
-                    .foregroundColor(AppTheme.ink)
-                Spacer()
-                Text("20 Film Tablet")
-                    .font(.caption.bold())
-                    .foregroundColor(.white)
-            }
-            .padding(14)
-            .frame(width: 190, height: 120, alignment: .leading)
-        }
-    }
-}
-
-struct MedicineBoxMini: View {
-    let name: String
-
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(.white)
-                .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 6)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(String(name.prefix(10)))
-                    .font(.system(size: 14, weight: .black, design: .rounded))
-                    .foregroundColor(AppTheme.navy)
-                    .lineLimit(1)
-                Text("%0.2")
-                    .font(.caption.bold())
-                    .foregroundColor(AppTheme.blue)
-                Spacer()
-                RoundedRectangle(cornerRadius: 2).fill(AppTheme.blue).frame(height: 18)
-            }
-            .padding(9)
-        }
-    }
-}
-
-struct HeadphoneIllustration: View {
-    var body: some View {
-        ZStack {
-            Circle().fill(Color.black.opacity(0.92)).frame(width: 76, height: 76).offset(x: -42, y: 36)
-            Circle().fill(Color.black.opacity(0.92)).frame(width: 76, height: 76).offset(x: 42, y: 36)
-            Circle().fill(Color(red: 0.05, green: 0.06, blue: 0.07)).frame(width: 48, height: 48).offset(x: -42, y: 36)
-            Circle().fill(Color(red: 0.05, green: 0.06, blue: 0.07)).frame(width: 48, height: 48).offset(x: 42, y: 36)
-            Circle()
-                .trim(from: 0.12, to: 0.88)
-                .stroke(Color.black.opacity(0.90), style: StrokeStyle(lineWidth: 22, lineCap: .round))
-                .frame(width: 150, height: 160)
-                .offset(y: 20)
-            RoundedRectangle(cornerRadius: 8).fill(Color.black.opacity(0.96)).frame(width: 34, height: 86).offset(x: -65, y: 21)
-            RoundedRectangle(cornerRadius: 8).fill(Color.black.opacity(0.96)).frame(width: 34, height: 86).offset(x: 65, y: 21)
-        }
-        .rotationEffect(.degrees(-7))
-    }
-}
-
-// MARK: - UIKit Picker / Helpers
-
-struct ImagePicker: UIViewControllerRepresentable {
-    var onImage: (UIImage) -> Void
-    @Environment(\.dismiss) private var dismiss
-
-    func makeCoordinator() -> Coordinator { Coordinator(self) }
-
-    func makeUIViewController(context: Context) -> UIImagePickerController {
-        let picker = UIImagePickerController()
-        picker.delegate = context.coordinator
-        picker.sourceType = UIImagePickerController.isSourceTypeAvailable(.camera) ? .camera : .photoLibrary
-        picker.allowsEditing = false
-        return picker
-    }
-
-    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
-
-    final class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
-        let parent: ImagePicker
-        init(_ parent: ImagePicker) { self.parent = parent }
-        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
-            if let image = info[.originalImage] as? UIImage { parent.onImage(image) }
-            parent.dismiss()
-        }
-        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) { parent.dismiss() }
-    }
-}
-
-func openURL(_ value: String) {
-    guard let url = URL(string: value), UIApplication.shared.canOpenURL(url) else { return }
+func openURL(_ string: String) {
+    guard let url = URL(string: string), UIApplication.shared.canOpenURL(url) else { return }
     UIApplication.shared.open(url)
-}
-
-extension String {
-    var nilIfEmpty: String? {
-        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed
-    }
 }
