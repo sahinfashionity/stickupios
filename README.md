@@ -1,35 +1,32 @@
-# EtiketRadar iOS - Tavily + Gemini Backend Uyumlu
+# EtiketRadar iOS - Yeni Premium Tasarım
 
-Bu sürümde uygulama açıldığında iki büyük seçenek görünür:
+Bu klasör Codemagic ile IPA üretmek için hazırdır.
 
-- Etiket
-- İlaç
+## Ana dosya
 
-## İlaç akışı
+```text
+EtiketRadar/EtiketRadarApp.swift
+```
 
-- Manuel Ekle: tek satırlık ilaç adı girilir.
-- Resim Çek: ilaç kutusu fotoğrafından Apple Vision OCR ile metin çıkarılır.
-- Backend Tavily ile arama yapar, Gemini Flash-Lite ile özetler.
-- Sonuç ekranında fiyatlar, kullanım talimatı, yan etkiler ve kaynaklar görünür.
-- Satın Al pop-up içinde fiyat, site adı ve tıklanabilir link gösterilir.
+## Yapı
 
-## Etiket akışı
+- SwiftUI tek dosya uygulama
+- Vision OCR cihaz içinde çalışır
+- Backend URL ve APP_API_KEY Ayarlar ekranından girilir
+- Tavily/Gemini API anahtarları iPhone içinde tutulmaz, sadece Vercel Environment Variables içindedir
 
-- Mağaza/market/elektronik ürün etiketi fotoğrafı çekilir veya manuel ürün adı yazılır.
-- OCR ile marka/model/açıklama çıkarılmaya çalışılır.
-- Tavily ile Türkiye alışveriş sitelerinde fiyatlar aranır.
-- En uygun fiyat ve satıcı listesi gösterilir.
+## Yeni ekranlar
+
+- Ana ekran: Etiket / İlaç büyük görsel kartları
+- İlaç Asistanı: Manuel Ekle / Fotoğraf Çek
+- İlaç Sonuçları: fiyat, kullanım talimatı, yan etkiler, doktor uyarısı
+- Etiket Karşılaştır: marka/model/açıklama ve fiyat listesi
+- Satın Al: tam ekran açılır, yüksekliği tüm ekranı kaplar
 
 ## Codemagic
 
-Repo kökünde `codemagic.yaml` ve `project.yml` vardır.
-Codemagic workflow: `EtiketRadar iOS unsigned IPA`
-
-## Backend ayarları
-
-Uygulama > Ayarlar:
+Workflow:
 
 ```text
-Backend URL: https://etiket-radar-backend.vercel.app/
-Uygulama API anahtarı: etiket-radar-123456
+EtiketRadar iOS unsigned IPA
 ```
