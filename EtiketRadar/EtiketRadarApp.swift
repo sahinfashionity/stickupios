@@ -340,9 +340,16 @@ extension Optional where Wrapped == String {
 }
 
 extension String {
-    var cleanOrNil: String? {
+    /// Boşlukları temizler; boş string ise nil döndürür.
+    /// Not: Bazı yerlerde non-optional String üzerinde `.clean` kullanıldığı için
+    /// bu property build hatasını önlemek amacıyla özellikle eklendi.
+    var clean: String? {
         let value = trimmingCharacters(in: .whitespacesAndNewlines)
         return value.isEmpty ? nil : value
+    }
+
+    var cleanOrNil: String? {
+        clean
     }
 }
 
@@ -2359,7 +2366,8 @@ struct ComparisonSummaryTable: View {
             .foregroundColor(isHeader ? ERTheme.navy : ERTheme.ink)
             .lineLimit(2)
             .minimumScaleFactor(0.72)
-            .frame(width: width, minHeight: 44, alignment: .leading)
+            .frame(width: width, alignment: .leading)
+            .frame(minHeight: 44, alignment: .leading)
             .padding(8)
             .background(isHeader ? ERTheme.blue.opacity(0.06) : Color.white.opacity(0.32))
             .border(ERTheme.lightStroke.opacity(0.45), width: 0.5)
